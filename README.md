@@ -1,3 +1,8 @@
-FIELD Project EMAp 2025 realizado em conjunto por alunos da EMAp e a empresa SPX. 
+# Field Project SPX x EMAp 2025
+## Termômetro do Mercado de Trabalho Brasileiro baseado na PNAD contínua 
 
-Projeto tem por objetivo a análise de microdados coletados pelo PNAD.
+#### Alunos integrantes: Bernardo Quintella, Jean Gabriel Domingueti e Sofia Monteiro
+
+O projeto tem como objetivo a análise e tratamento de microdados coletados pela PNAD contínua, visando a geração de estatísticas de maior eficácia na avaliação e previsão no mercado de trabalho brasileiro.
+
+
