@@ -72,17 +72,17 @@ reg = {
 esc = {
     "01" : "Creche",
     "02" : "Pré-escola",
-    "03" : "C.A.",                              # C.A. : Classe de alfabetização
-    "04" : "Alfabetização de jovens e adultos",
-    "05" : "Antigo primário (elementar)",
-    "06" : "Antigo ginásio (médio 1º ciclo)",
+    "03" : "Classe de Alfab.",             # Alfab. : Alfabetização
+    "04" : "Alfab. Jovens/Adultos",       
+    "05" : "Elementar",
+    "06" : "Médio 1º ciclo",
     "07" : "Regular do 1º grau",
-    "08" : "EJA ou supletivo do 1º grau",       # EJA : Educação de jovens e adultos
-    "09" : "Escolarização científica",          # ( Antigo científico, clássico, etc. - médio 2º ciclo )
+    "08" : "Supletivo do 1º grau",         # (EJA : Educação de jovens e adultos, entra aqui também)
+    "09" : "Ensino ientífico",             # ( Antigo científico, clássico, etc. - médio 2º ciclo )
     "10" : "Regular do 2º grau",
-    "11" : "EJA ou supletivo do 2º grau",
+    "11" : "Supletivo do 2º grau",
     "12" : "Superior",
-    "13" : "Especialização de nível superior",  # Espec. : Especialização
+    "13" : "Nível superior",
     "14" : "Mestrado",
     "15" : "Doutorado"
 }
@@ -145,7 +145,7 @@ def group_columns(path, col_name, filter):
     parq.dropna(inplace=True, ignore_index=True)
     nones = total_lines - len(parq)
     if nones > 0 : print(f"Found {nones} None's on the colum {col_name}. It",
-                        " corresponds to {nones/total_lines:%} of all the data.")
+                        f" corresponds to {nones/total_lines:%} of all the data.")
     pd_dict = parq.to_dict()
     res = {}
     k_filter = []
@@ -199,15 +199,18 @@ if __name__ == '__main__':
                                                                         reverse=True)]) # Para ordenar o dicionário
             dump_path = Path(f"PNAD_data/{y}/Dump/{y}_{t}_{usr_ans}.txt")
             dump_path.parent.mkdir(exist_ok=True, parents=True)
+            percents = []
             with open(dump_path, "w", encoding="UTF-8") as out:
                 out.write(f"Total de respostas: {total_ans}\n\n")
                 for label, val in sorted_res.items():
                     out.write(f"{label}: {val} ({(val/total_ans):%})\n")
+                    percents.append(f"{(val/total_ans):2.2%}")
             # plt.figure(figsize=(8, 5))        # Plot com Matplotlib
             # plt.barh([str(i) for i in sorted_res.keys()], np.array(list(sorted_res.values())))
             # plt.title(title)
             # plt.show()
             fig = px.bar({"Divisões" : list(sorted_res.keys()), "Respostas": list(sorted_res.values())},
-                          x="Respostas", y="Divisões", labels=False, title=title, orientation='h') # Plot com Plotly
+                          x="Respostas", y="Divisões", labels=False, title=title, orientation='h', text=percents) # Plot com Plotly
+            fig.update_layout(font_size=43, margin={"b":120,"t":120,"r":80,"l":80}, title_x=0.5)
             fig.show()
-            print("\Escolha outro filtro, digite \"-\"  para mudar o ano/trimestre ou digite \"*\" para sair\n")
+            print("Escolha outro filtro, digite \"-\"  para mudar o ano/trimestre ou digite \"*\" para sair\n")
