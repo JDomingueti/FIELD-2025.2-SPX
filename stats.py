@@ -1,6 +1,7 @@
 from pathlib import Path
 import pandas as pd
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+import numpy as np
 import plotly.express as px
 from to_parquet import make_data_paths
 
@@ -78,7 +79,7 @@ esc = {
     "06" : "Médio 1º ciclo",
     "07" : "Regular do 1º grau",
     "08" : "Supletivo do 1º grau",         # (EJA : Educação de jovens e adultos, entra aqui também)
-    "09" : "Ensino ientífico",             # ( Antigo científico, clássico, etc. - médio 2º ciclo )
+    "09" : "Ensino Científico",             # ( Antigo científico, clássico, etc. - médio 2º ciclo )
     "10" : "Regular do 2º grau",
     "11" : "Supletivo do 2º grau",
     "12" : "Superior",
@@ -104,12 +105,17 @@ sex = {
     "#": "Sem resposta"
 }
 
+
+
 cols = {
     "1": "UF",
     "2": "UF",
-    "3": "V2007",
-    "4": "V2010",
-    "5": "V3009A",
+    "3": "V2007", #Sexo
+    "4": "V2010", #Cor ou raca
+    "5": "V3009A", #Curso mais elevado que frequentou
+    "6": "V2009", # Idade na data de referencia
+    "7": "VD4019", # Rend.  habitual qq trabalho
+    "8": "VD4016" #  Rend. habitual. trab. princ.
     }
 
 filt = {
@@ -118,6 +124,9 @@ filt = {
     "3": sex,
     "4": rac,
     "5": esc,
+    "6": None,
+    "7": None,
+    "8": None
 }
 
 titles = {
@@ -125,8 +134,52 @@ titles = {
    "2": "Respostas por Estados",
    "3": "Respostas por Sexo",
    "4": "Respostas por Raça",
-   "5": "Respostas por Escolarização"
+   "5": "Respostas por Escolarização",
+   "6": "Respostas por Idade",
+   "7": "Respostas por Renda Habitual Total",
+   "8": "Respostas por Renda Habitual Principal"
 }
+
+def age_bin(age:str):
+    """
+    Dada uma string representando a  idade, retorna uma string do intervalo
+    que a idade se encontra.
+
+    Parameters:
+        age (str): Idade
+    
+    Returns:
+        Retorna uma string com o intervalo que a idade se encontra
+    """
+    if age == "#": return "Sem Resposta"
+    age = int(age)
+    if age < 18: return "0-17"
+    elif age < 30: return "18-29"
+    elif age < 45: return "30-44"
+    elif age < 60: return "45-59"
+    elif age < 90: return "61-89"
+    else: return "90+"
+
+def income_bin(income: str, minimum_income=1518):
+    """
+    Dada uma string representando a renda, e uma string representando o salario minimo,
+    retorna uma string do intervalorque a renda se encontra.
+
+    Parameters: 
+        income (str): Renda
+
+    Returns:
+        Retorna uma string com o intervalo que a renda se encontra
+    """
+    if income == "#": return "Não aplicável"
+    income = int(income)
+    if income <=  minimum_income: return "Até R$1.518"
+    elif income <= 2 * minimum_income: return "R$1.519-R$3.036 "
+    elif income <= 4 * minimum_income: return "R$3.037-R$6.072"
+    elif income <= 8 * minimum_income: return "R$6.073-R$12.144"
+    elif income <= 16 * minimum_income: return "R$12.145-R$24.288"
+    elif income <= 32 * minimum_income: return "R$24.289-R$48.576"
+    else: return "R$48.577+"
 
 def group_columns(path:str, col_names:list[str], filters:list[dict]):
     '''
@@ -146,33 +199,59 @@ def group_columns(path:str, col_names:list[str], filters:list[dict]):
     parq = pd.read_parquet(path, columns=col_names)
     total_lines = len(parq)
     parq.fillna("#", inplace=True)
-    parq.dropna(inplace=True, ignore_index=True)
     nones = total_lines - len(parq)
     if (nones > 0) : print(f"Found {nones} None's on the colum {col_names}. It",
                         f" corresponds to {nones/total_lines:%} of all the data.")
     pd_dict = parq.to_dict()
     res = {}
     k_filter = []
+    # Caso so uma coluna
     if (len(col_names) == 1):
-        for val in list(pd_dict[col_names[0]].values()):
-            if (filters[0][val] in k_filter):
-                res[filters[0][val]] += 1
+        col = col_names[0]
+        for val in list(pd_dict[col].values()):
+            if filters[0] is None:
+                if col == "V2009": # idade
+                    key = age_bin(val)
+                elif col in ["VD4019", "VD4016"]: # renda
+                    key = income_bin(val)
+                else:
+                    key = str(val)
             else:
-                res[filters[0][val]] = 1
-                k_filter.append(filters[0][val])
+                key = filters[0][val]
+
+            if key in k_filter:
+                res[key] += 1
+            else:
+                res[key] = 1
+                k_filter.append(key)
+
+    # Caso mais de uma coluna
     else:
-        for t in zip(*(pair.values() for pair in list(pd_dict.values()))):  # Organiza todas linhas em uma lista onde cada elemento é uma tupla com os elementos de cada coluna e itera nessa lista
-            n_key = '/'.join(filters[i][v] for i,v in enumerate(t))
-            if (n_key in k_filter):
+        for t in zip(*(pair.values() for pair in list(pd_dict.values()))):
+            new_keys = []
+            for i, v in enumerate(t):
+                if filters[i] is None:
+                    if col_names[i] == "V2009": # idade
+                        new_keys.append(age_bin(v))
+                    elif col_names[i] in ["VD4019", "VD4016"]: #renda
+                        new_keys.append(income_bin(v))
+                    else:
+                        new_keys.append(str(v))
+                else:
+                    new_keys.append(filters[i][v])
+            n_key = '/'.join(new_keys)
+
+            if n_key in k_filter:
                 res[n_key] += 1
             else:
                 res[n_key] = 1
                 k_filter.append(n_key)
+
     return res, total_lines
 
 if __name__ == '__main__':
     run0 = True
-    filts = ["1", "2", "3", "4", "5"]
+    filts = ["1", "2", "3", "4", "5", "6", "7", "8"]
     while (run0):
         run1 = True
         y = input("Ano dos microdados:")
@@ -190,7 +269,8 @@ if __name__ == '__main__':
         _, parquet_path = make_data_paths(y, t)
         print("Inputs: \n -> \"*\" : Finalizar execução\n -> \"-\" : Mudar ano/trimestre")
         print(" -> \"1\" : Filtrar por região \n -> \"2\" : Filtrar por estado\n -> \"3\" : Filtrar",
-            "por sexo\n -> \"4\" : Filtrar por raça\n -> \"5\" : Filtrar por escolaridade\n -> \"6\" : Dois filtros")
+            "por sexo\n -> \"4\" : Filtrar por raça\n -> \"5\" : Filtrar por escolaridade\n -> \"6\" : Filtrar por idade\n",
+            "-> \"7\" : Filtrar por renda habitual total\n -> \"8\" : Filtrar por renda habitual principal\n -> \"9\" : Dois filtros")
         w_filter = []
         while(run1):
             usr_ans = input("Filtro utilizado:")
@@ -204,9 +284,9 @@ if __name__ == '__main__':
             elif (usr_ans in filts):
                 title = titles[usr_ans]
                 w_filter, total_ans = group_columns(parquet_path, [cols[usr_ans]], [filt[usr_ans]])
-            elif (usr_ans == "6"):
+            elif (usr_ans == "9"):
                 title = "Respostas com dois filtros"
-                print(" -> Digite o número dos dois filtros\n -> Opções: 1; 3; 4; 5 <-\n")
+                print(" -> Digite o número dos dois filtros\n -> Opções: 1; 3; 4; 5; 6; 7; 8 <-\n")
                 ans_d = [input(" -> Filtro 1 : "), input(" -> Filtro 2 : ")]
                 if ("*" in ans_d):
                     run1 = False
@@ -233,12 +313,12 @@ if __name__ == '__main__':
                 for label, val in sorted_res.items():
                     out.write(f"{label}: {val} ({(val/total_ans):%})\n")
                     percents.append(f"{(val/total_ans):2.2%}")
-            # plt.figure(figsize=(8, 5))        # Plot com Matplotlib
-            # plt.barh([str(i) for i in sorted_res.keys()], np.array(list(sorted_res.values())))
-            # plt.title(title)
-            # plt.show()
-            fig = px.bar({"Divisões" : list(sorted_res.keys()), "Respostas": list(sorted_res.values())},
-                          x="Respostas", y="Divisões", labels=False, title=title, orientation='h', text=percents) # Plot com Plotly
-            fig.update_layout(font_size=(5+round((48*2)/len(w_filter))), margin={"b":120,"t":120,"r":80,"l":80}, title_x=0.5)
-            fig.show()
+            plt.figure(figsize=(8, 5))        # Plot com Matplotlib
+            plt.barh([str(i) for i in sorted_res.keys()], np.array(list(sorted_res.values())))
+            plt.title(title)
+            plt.show()
+            #fig = px.bar({"Divisões" : list(sorted_res.keys()), "Respostas": list(sorted_res.values())},
+            #              x="Respostas", y="Divisões", labels=False, title=title, orientation='h', text=percents) # Plot com Plotly
+            #fig.update_layout(font_size=(5+round((48*2)/len(w_filter))), margin={"b":120,"t":120,"r":80,"l":80}, title_x=0.5)
+            #fig.show()
             print("Escolha outro filtro, digite \"-\"  para mudar o ano/trimestre ou digite \"*\" para sair\n")

@@ -37,25 +37,41 @@ with open(layout_path, 'r', encoding='latin1') as file:
             names.append(var)
 
 widths = [starts[i+1] - starts[i] for i in range(len(starts)-1)]
-widths.append(4000 - starts[-1] + 1) 
+widths.append(4000 - starts[-1] + 1)
 
-y = input("Ano dos microdados:")
-t = input("Trimestre desejado:")
+if __name__ == "__main__":
+    y = input("Ano dos microdados:")
+    t = input("Trimestre desejado:")
 
-txt_file, parquet_file = make_data_paths(y, t)
+    txt_file, parquet_file = make_data_paths(y, t)
 
-columns_to_keep = ["Ano", "Trimestre", "UF", "UPA", "V1008", "V1014", "V2003", "V2005", 
-                   "V2007", "V2009", "VD4016", "VD4002", "VD4020", "VD4035"]
+    columns_to_keep = ["Ano", "Trimestre", "UF", "UPA", "V1008", "V1014", "V2003", "V2005", 
+                    "V2007", "V2009", "VD4016", "VD4002", "VD4019", "VD4035", "V3009A", "V2010"]
 
-df = pd.read_fwf(txt_file, widths=widths, names=names, dtype=str, encoding='latin1')
-df = df[[c for c in columns_to_keep if c in df.columns]]
-        
-print(f"Loaded {len(df):,} rows with {len(df.columns)} columns.")
-        
-table = pa.Table.from_pandas(df)
-        
-pq.write_table(table, parquet_file, compression='snappy')
+    # separando o arquivo e lendo por chunks
+    chunksize = 100_000
+    dfs = []
+    total_rows = 0 
 
-print(f"Saved to {parquet_file}")
+    for i, chunk in enumerate(pd.read_fwf(txt_file, 
+                                        widths=widths, 
+                                        names=names, 
+                                        dtype=str, 
+                                        encoding='latin1', 
+                                        chunksize=chunksize)):
+        total_rows += len(chunk)
+        print(f"Lidas {total_rows:,} linhas ate agora...")
 
+        chunk = chunk[[c for c in columns_to_keep if c in chunk.columns]]
+        dfs.append(chunk)
 
+    # concatenar os chunks
+    df = pd.concat(dfs, ignore_index=True)
+            
+    print(f"Loaded {len(df):,} rows with {len(df.columns)} columns.")
+            
+    table = pa.Table.from_pandas(df)
+            
+    pq.write_table(table, parquet_file, compression='snappy')
+
+    print(f"Saved to {parquet_file}")
