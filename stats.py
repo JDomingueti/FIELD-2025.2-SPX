@@ -115,7 +115,8 @@ cols = {
     "5": "V3009A", #Curso mais elevado que frequentou
     "6": "V2009", # Idade na data de referencia
     "7": "VD4019", # Rend.  habitual qq trabalho
-    "8": "VD4016" #  Rend. habitual. trab. princ.
+    "8": "VD4016", #  Rend. habitual. trab. princ.
+    '9': 'VD4017' # Rend. efetivo trab. princic.
     }
 
 filt = {
@@ -126,7 +127,8 @@ filt = {
     "5": esc,
     "6": None,
     "7": None,
-    "8": None
+    "8": None,
+    '9': None
 }
 
 titles = {
@@ -137,7 +139,8 @@ titles = {
    "5": "Respostas por Escolarização",
    "6": "Respostas por Idade",
    "7": "Respostas por Renda Habitual Total",
-   "8": "Respostas por Renda Habitual Principal"
+   "8": "Respostas por Renda Habitual Principal",
+   '9': 'Respostas por Renda Efetiva Principal'
 }
 
 def age_bin(age:str):
@@ -176,7 +179,7 @@ def income_bin(income: str, minimum_income=1518):
     if income <=  minimum_income: return "Até R$1.518"
     elif income <= 2 * minimum_income: return "R$1.519-R$3.036 "
     elif income <= 4 * minimum_income: return "R$3.037-R$6.072"
-    elif income <= 8 * minimum_income: return "R$6.073-R$12.144"
+    elif income <= 8 * minimum_income: return "R$6.073-R$2.144"
     elif income <= 16 * minimum_income: return "R$12.145-R$24.288"
     elif income <= 32 * minimum_income: return "R$24.289-R$48.576"
     else: return "R$48.577+"
@@ -212,7 +215,7 @@ def group_columns(path:str, col_names:list[str], filters:list[dict]):
             if filters[0] is None:
                 if col == "V2009": # idade
                     key = age_bin(val)
-                elif col in ["VD4019", "VD4016"]: # renda
+                elif col in ["VD4019", "VD4016", 'VD4017']: # renda
                     key = income_bin(val)
                 else:
                     key = str(val)
@@ -233,7 +236,7 @@ def group_columns(path:str, col_names:list[str], filters:list[dict]):
                 if filters[i] is None:
                     if col_names[i] == "V2009": # idade
                         new_keys.append(age_bin(v))
-                    elif col_names[i] in ["VD4019", "VD4016"]: #renda
+                    elif col_names[i] in ["VD4019", "VD4016", 'VD4017']: #renda
                         new_keys.append(income_bin(v))
                     else:
                         new_keys.append(str(v))
@@ -249,16 +252,66 @@ def group_columns(path:str, col_names:list[str], filters:list[dict]):
 
     return res, total_lines
 
+def group_columns_weighted(path: str, col_names: list[str], filters: list[dict]):
+    """
+    Igual a group_columns, mas usa V1028 como peso amostral.
+    """
+    parq = pd.read_parquet(path, columns=col_names + ["V1028"])
+    parq['V1028'].fillna(0, inplace=True)
+    total_weight = parq["V1028"].sum()
+    parq.fillna("#", inplace=True)
+
+    res = {}
+    k_filter = []
+
+    if len(col_names) == 1:
+        col = col_names[0]
+        for val, peso in zip(parq[col], parq["V1028"]):
+            if filters[0] is None:
+                if col == "V2009":  # idade
+                    key = age_bin(val)
+                elif col in ["VD4019", "VD4016", "VD4017"]:  # renda
+                    key = income_bin(val)
+                else:
+                    key = str(val)
+            else:
+                key = filters[0].get(val, "Outro")
+
+            res[key] = res.get(key, 0) + peso
+            if key not in k_filter:
+                k_filter.append(key)
+
+    else:
+        for *vals, peso in zip(*(parq[c] for c in col_names), parq["V1028"]):
+            new_keys = []
+            for i, v in enumerate(vals):
+                if filters[i] is None:
+                    if col_names[i] == "V2009":
+                        new_keys.append(age_bin(v))
+                    elif col_names[i] in ["VD4019", "VD4016", "VD4017"]:
+                        new_keys.append(income_bin(v))
+                    else:
+                        new_keys.append(str(v))
+                else:
+                    new_keys.append(filters[i].get(v, "Outro"))
+
+            n_key = "/".join(new_keys)
+            res[n_key] = res.get(n_key, 0) + peso
+            if n_key not in k_filter:
+                k_filter.append(n_key)
+
+    return res, total_weight
+
 if __name__ == '__main__':
     run0 = True
-    filts = ["1", "2", "3", "4", "5", "6", "7", "8"]
+    filts = ["1", "2", "3", "4", "5", "6", "7", "8", '9']
     while (run0):
         run1 = True
         y = input("Ano dos microdados:")
         if (y == "*"):
             run0 = False
             break
-        elif (y not in ["2020", "2021", "2022", "2023", "2024", "2025"]):
+        elif y not in ["2020", "2021", "2022", "2023", "2024", "2025"]:
             continue
         t = input("Trimestre desejado:")
         if (t == "*"):
@@ -267,10 +320,13 @@ if __name__ == '__main__':
         elif (t not in filts):
             continue
         _, parquet_path = make_data_paths(y, t)
+        # aplicar pesos amostrais
+        use_weights = input("Aplicar pesos ? [s/n]: ").lower() == 's'
+
         print("Inputs: \n -> \"*\" : Finalizar execução\n -> \"-\" : Mudar ano/trimestre")
         print(" -> \"1\" : Filtrar por região \n -> \"2\" : Filtrar por estado\n -> \"3\" : Filtrar",
             "por sexo\n -> \"4\" : Filtrar por raça\n -> \"5\" : Filtrar por escolaridade\n -> \"6\" : Filtrar por idade\n",
-            "-> \"7\" : Filtrar por renda habitual total\n -> \"8\" : Filtrar por renda habitual principal\n -> \"9\" : Dois filtros")
+            "-> \"7\" : Filtrar por renda habitual total\n -> \"8\" : Filtrar por renda habitual principal\n -> \"9\" : Filtrar por renda efetiva principal\n -> \'10\' : Dois Filtros")
         w_filter = []
         while(run1):
             usr_ans = input("Filtro utilizado:")
@@ -283,10 +339,13 @@ if __name__ == '__main__':
                 break
             elif (usr_ans in filts):
                 title = titles[usr_ans]
-                w_filter, total_ans = group_columns(parquet_path, [cols[usr_ans]], [filt[usr_ans]])
-            elif (usr_ans == "9"):
+                if use_weights:
+                    w_filter, total_ans = group_columns_weighted(parquet_path, [cols[usr_ans]], [filt[usr_ans]])
+                else:
+                    w_filter, total_ans = group_columns(parquet_path, [cols[usr_ans]], [filt[usr_ans]])
+            elif (usr_ans == "10"):
                 title = "Respostas com dois filtros"
-                print(" -> Digite o número dos dois filtros\n -> Opções: 1; 3; 4; 5; 6; 7; 8 <-\n")
+                print(" -> Digite o número dos dois filtros\n -> Opções: 1; 3; 4; 5; 6; 7; 8; 9 <-\n")
                 ans_d = [input(" -> Filtro 1 : "), input(" -> Filtro 2 : ")]
                 if ("*" in ans_d):
                     run1 = False
@@ -298,7 +357,10 @@ if __name__ == '__main__':
                 elif not ((ans_d[0] in filts) and (ans_d[1] in filts)):
                     print(" -> Ao menos um dos filtros inseridos são inválidos.\n")
                     continue
-                w_filter, total_ans = group_columns(parquet_path, [cols[ans] for ans in ans_d], [filt[ans] for ans in ans_d])
+                if use_weights:
+                    w_filter, total_ans = group_columns_weighted(parquet_path, [cols[ans] for ans in ans_d], [filt[ans] for ans in ans_d])
+                else:
+                    w_filter, total_ans = group_columns(parquet_path, [cols[ans] for ans in ans_d], [filt[ans] for ans in ans_d])
             else:
                 print("Filtro não definido.")
                 continue
@@ -313,12 +375,12 @@ if __name__ == '__main__':
                 for label, val in sorted_res.items():
                     out.write(f"{label}: {val} ({(val/total_ans):%})\n")
                     percents.append(f"{(val/total_ans):2.2%}")
-            plt.figure(figsize=(8, 5))        # Plot com Matplotlib
-            plt.barh([str(i) for i in sorted_res.keys()], np.array(list(sorted_res.values())))
-            plt.title(title)
-            plt.show()
-            #fig = px.bar({"Divisões" : list(sorted_res.keys()), "Respostas": list(sorted_res.values())},
-            #              x="Respostas", y="Divisões", labels=False, title=title, orientation='h', text=percents) # Plot com Plotly
-            #fig.update_layout(font_size=(5+round((48*2)/len(w_filter))), margin={"b":120,"t":120,"r":80,"l":80}, title_x=0.5)
-            #fig.show()
+            #plt.figure(figsize=(8, 5))        # Plot com Matplotlib
+            #plt.barh([str(i) for i in sorted_res.keys()], np.array(list(sorted_res.values())))
+            #plt.title(title)
+            #plt.show()
+            fig = px.bar({"Divisões" : list(sorted_res.keys()), "Respostas": list(sorted_res.values())},
+                         x="Respostas", y="Divisões", labels=False, title=title, orientation='h', text=percents) # Plot com Plotly
+            fig.update_layout(font_size=(5+round((48*2)/len(w_filter))), margin={"b":120,"t":120,"r":80,"l":220}, title_x=0.5)
+            fig.show()
             print("Escolha outro filtro, digite \"-\"  para mudar o ano/trimestre ou digite \"*\" para sair\n")

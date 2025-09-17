@@ -46,7 +46,7 @@ if __name__ == "__main__":
     txt_file, parquet_file = make_data_paths(y, t)
 
     columns_to_keep = ["Ano", "Trimestre", "UF", "UPA", "V1008", "V1014", "V2003", "V2005", 
-                    "V2007", "V2009", "VD4016", "VD4002", "VD4019", "VD4035", "V3009A", "V2010"]
+                    "V2007", "V2009", "VD4016", "VD4002", "VD4019", "VD4035", "V3009A", "V2010", "VD4017", 'V1028']
 
     # separando o arquivo e lendo por chunks
     chunksize = 100_000
@@ -63,6 +63,7 @@ if __name__ == "__main__":
         print(f"Lidas {total_rows:,} linhas ate agora...")
 
         chunk = chunk[[c for c in columns_to_keep if c in chunk.columns]]
+        chunk.loc[:, 'V1028'] = pd.to_numeric(chunk['V1028'], errors='coerce')
         dfs.append(chunk)
 
     # concatenar os chunks
