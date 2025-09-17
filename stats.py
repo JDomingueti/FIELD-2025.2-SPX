@@ -314,11 +314,12 @@ if __name__ == '__main__':
         if (t == "*"):                                                  # Caractere que sai do programa
             run0 = False
             break
-        elif (t not in filts):                                          # Caso o filtro selecionado não tenha sido pré-definido reinicia o loop
+        elif (t not in ['1', '2', '3', '4']):                           # Caso o trimestre selecionado não tenha sido pré-definido reinicia o loop
             continue
         _, parquet_path = make_data_paths(y, t)
         # aplicar pesos amostrais
         use_weights = (input("Aplicar pesos ? [s/n]: ").lower() == 's') if (uw == '0') else uw
+        weight_txt = " (com pesos amostrais)" if use_weights else ""
 
         print("Inputs: \n -> \"*\" : Finalizar execução\n -> \"-\" : Mudar ano/trimestre")
         print(" -> \"1\" : Filtrar por região \n -> \"2\" : Filtrar por estado\n -> \"3\" : Filtrar",
@@ -335,13 +336,13 @@ if __name__ == '__main__':
                 run1 = False
                 break
             elif (usr_ans in filts):
-                title = titles[usr_ans]
+                base_title = titles[usr_ans] 
+                title = f'{base_title} - {y} - T{t}{weight_txt}' #titulo personalizado
                 if use_weights:
                     w_filter, total_ans = group_columns_weighted(parquet_path, [cols[usr_ans]], [filt[usr_ans]])
                 else:
                     w_filter, total_ans = group_columns(parquet_path, [cols[usr_ans]], [filt[usr_ans]])
             elif (usr_ans == "10"):
-                title = "Respostas com dois filtros"
                 print(" -> Digite o número dos dois filtros\n -> Opções: 1; 3; 4; 5; 6; 7; 8; 9 <-\n")
                 ans_d = [input(" -> Filtro 1 : "), input(" -> Filtro 2 : ")]
                 if ("*" in ans_d):
@@ -354,6 +355,8 @@ if __name__ == '__main__':
                 elif not ((ans_d[0] in filts) and (ans_d[1] in filts)):
                     print(" -> Ao menos um dos filtros inseridos são inválidos.\n")
                     continue
+                base_title = f'{titles[ans_d[0]]} + {titles[ans_d[1]]}' # titulo duplo
+                title = f'{base_title} - {y} - T{t}{weight_txt}'
                 if use_weights:
                     w_filter, total_ans = group_columns_weighted(parquet_path, [cols[ans] for ans in ans_d], [filt[ans] for ans in ans_d])
                 else:
@@ -378,6 +381,6 @@ if __name__ == '__main__':
             fig.update_layout(font_size=(5+round((48*2)/len(w_filter))), margin={"b":120,"t":120,"r":80,"l":220}, title_x=0.5)
             fig.show()
             print("Escolha outro filtro, digite \"-\"  para mudar o ano/trimestre ou digite \"*\" para sair\n")
-        y = 0
-        t = 0
-        uw = None
+        y = "0"
+        t = "0"
+        uw = "0"
