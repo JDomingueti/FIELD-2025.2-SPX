@@ -1,9 +1,8 @@
 from pathlib import Path
 import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
 import plotly.express as px
 from to_parquet import make_data_paths
+import sys
 
 est = {
     "11": "Rondônia",
@@ -63,11 +62,6 @@ reg = {
     "51": "Centro",
     "52": "Centro",
     "53": "Centro"
-    # "Norte" : ["11", "12", "13", "14", "15", "16", "17"],
-    # "Nordeste": ["21", "22", "23", "24", "25", "26", "27", "28", "29"],
-    # "Centro": ["50", "51", "52", "53"],
-    # "Sudeste": ["31", "32", "33", "35"],
-    # "Sul": ["41", "42", "43"]
 }
 
 esc = {
@@ -79,14 +73,14 @@ esc = {
     "06" : "Médio 1º ciclo",
     "07" : "Regular do 1º grau",
     "08" : "Supletivo do 1º grau",         # (EJA : Educação de jovens e adultos, entra aqui também)
-    "09" : "Ensino Científico",             # ( Antigo científico, clássico, etc. - médio 2º ciclo )
+    "09" : "Ensino Científico",            # ( Antigo científico, clássico, etc. - médio 2º ciclo )
     "10" : "Regular do 2º grau",
     "11" : "Supletivo do 2º grau",
     "12" : "Superior",
     "13" : "Nível superior",
     "14" : "Mestrado",
     "15" : "Doutorado",
-    "#"  : "Sem resposta"
+    0: "sem resposta"
 }
 
 rac = {
@@ -96,16 +90,14 @@ rac = {
     "4": "Parda",
     "5": "Indígena",
     "9": "Ignorado",
-    "#": "Sem resposta"
+    0: "Sem resposta"
 }
 
 sex = {
     "1": "Homem",
     "2": "Mulher",
-    "#": "Sem resposta"
+    0: "Sem resposta"
 }
-
-
 
 cols = {
     "1": "UF",
@@ -154,7 +146,7 @@ def age_bin(age:str):
     Returns:
         Retorna uma string com o intervalo que a idade se encontra
     """
-    if age == "#": return "Sem Resposta"
+    if age in [0, "0"]: return "Sem Resposta"
     age = int(age)
     if age < 18: return "0-17"
     elif age < 30: return "18-29"
@@ -174,15 +166,15 @@ def income_bin(income: str, minimum_income=1518):
     Returns:
         Retorna uma string com o intervalo que a renda se encontra
     """
-    if income == "#": return "Não aplicável"
+    if income in [0, "0"]: return "Não aplicável"
     income = int(income)
-    if income <=  minimum_income: return "Até R$1.518"
-    elif income <= 2 * minimum_income: return "R$1.519-R$3.036 "
-    elif income <= 4 * minimum_income: return "R$3.037-R$6.072"
-    elif income <= 8 * minimum_income: return "R$6.073-R$2.144"
-    elif income <= 16 * minimum_income: return "R$12.145-R$24.288"
-    elif income <= 32 * minimum_income: return "R$24.289-R$48.576"
-    else: return "R$48.577+"
+    if income <=  minimum_income: return "Até R&#36;1.518"
+    elif income <= 2 * minimum_income: return "R&#36;1.519-R&#36;3.036" 
+    elif income <= 4 * minimum_income: return "R&#36;3.037-R&#36;6.072"
+    elif income <= 8 * minimum_income: return "R&#36;6.073-R&#36;2.144"
+    elif income <= 16 * minimum_income: return "R&#36;12.145-R&#36;24.288"
+    elif income <= 32 * minimum_income: return "R&#36;24.289-R&#36;48.576"
+    else: return "R&#36;48.577+"
 
 def group_columns(path:str, col_names:list[str], filters:list[dict]):
     '''
@@ -200,27 +192,24 @@ def group_columns(path:str, col_names:list[str], filters:list[dict]):
         do filtro) e um int com o total de linhas analisadas
     '''
     parq = pd.read_parquet(path, columns=col_names)
-    total_lines = len(parq)
-    parq.fillna("#", inplace=True)
-    nones = total_lines - len(parq)
-    if (nones > 0) : print(f"Found {nones} None's on the colum {col_names}. It",
-                        f" corresponds to {nones/total_lines:%} of all the data.")
-    pd_dict = parq.to_dict()
-    res = {}
-    k_filter = []
+    total_lines = len(parq)         # Número de linhas analisadas
+    parq.fillna(0, inplace=True)    # Substitui NA por 0 para facilitar agrupamento
+    pd_dict = parq.to_dict()        # Transforma em dict para facilitar a análise dos valores
+    res = {}                        # Dicionário de saída
+    k_filter = []                   # Lista com as labels já adicionadas à ´res´
     # Caso so uma coluna
     if (len(col_names) == 1):
         col = col_names[0]
         for val in list(pd_dict[col].values()):
             if filters[0] is None:
-                if col == "V2009": # idade
+                if col == "V2009": # Idade
                     key = age_bin(val)
-                elif col in ["VD4019", "VD4016", 'VD4017']: # renda
+                elif col in ["VD4019", "VD4016", 'VD4017']: # Renda
                     key = income_bin(val)
                 else:
                     key = str(val)
             else:
-                key = filters[0][val]
+                key = filters[0][val] # Pega no filtro a chave ao qual o valor da linha atual corresponde
 
             if key in k_filter:
                 res[key] += 1
@@ -241,14 +230,14 @@ def group_columns(path:str, col_names:list[str], filters:list[dict]):
                     else:
                         new_keys.append(str(v))
                 else:
-                    new_keys.append(filters[i][v])
+                    new_keys.append(filters[i][v]) # Pega no filtro correspondente à coluna a chave ao qual o valor da linha atual corresponde
             n_key = '/'.join(new_keys)
 
-            if n_key in k_filter:
+            if n_key in k_filter:       # Caso o valor já tenha sido adicionado à saída soma 1 ao seu valor
                 res[n_key] += 1
-            else:
+            else:                       # Caso o valor não tenha sido adicionado à saída o adiciona com valor 1
                 res[n_key] = 1
-                k_filter.append(n_key)
+                k_filter.append(n_key) 
 
     return res, total_lines
 
@@ -256,10 +245,12 @@ def group_columns_weighted(path: str, col_names: list[str], filters: list[dict])
     """
     Igual a group_columns, mas usa V1028 como peso amostral.
     """
+    # Comentários mais detalhados em group_columns
+
     parq = pd.read_parquet(path, columns=col_names + ["V1028"])
-    parq['V1028'].fillna(0, inplace=True)
+    parq.fillna({'V1028': 0}, inplace=True)
     total_weight = parq["V1028"].sum()
-    parq.fillna("#", inplace=True)
+    parq.fillna(0, inplace=True)
 
     res = {}
     k_filter = []
@@ -303,25 +294,31 @@ def group_columns_weighted(path: str, col_names: list[str], filters: list[dict])
     return res, total_weight
 
 if __name__ == '__main__':
-    run0 = True
-    filts = ["1", "2", "3", "4", "5", "6", "7", "8", '9']
+    args = sys.argv                                                     # Verifica se algum dos argumentos principais
+    y = args[1] if (len(args) >= 2) else "0"                            # foi passado pela linha de comando e se foi
+    t = args[2] if (len(args) >= 3) else "0"                            # utiliza-os ao menos na primeira iteração.
+    uw = (args[3] == 's') if (len(args) >= 4) else "0"                  # Pode-se passar nenhum, 1, 2 ou 3.
+    run0 = True                                                         # Variável para ser possível alterar o ano em uma mesma execução
+    filts = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]               # Possíveis valores para filtros
     while (run0):
-        run1 = True
-        y = input("Ano dos microdados:")
-        if (y == "*"):
+        run1 = True                                                     # Variável para alterar apenas o filtro na mesma execução
+        if y == "0":                                                    # Caso o ano não seja passado pelo terminal
+            y = input("Ano dos microdados:")
+        if (y == "*"):                                                  # Caractere que sai do programa
             run0 = False
             break
-        elif y not in ["2020", "2021", "2022", "2023", "2024", "2025"]:
+        elif y not in ["2020", "2021", "2022", "2023", "2024", "2025"]: # Anos que podem ser escolhidos
             continue
-        t = input("Trimestre desejado:")
-        if (t == "*"):
+        if t == "0":                                                    # Caso o trimestre não seja passado pelo terminal
+            t = input("Trimestre desejado:")
+        if (t == "*"):                                                  # Caractere que sai do programa
             run0 = False
             break
-        elif (t not in filts):
+        elif (t not in filts):                                          # Caso o filtro selecionado não tenha sido pré-definido reinicia o loop
             continue
         _, parquet_path = make_data_paths(y, t)
         # aplicar pesos amostrais
-        use_weights = input("Aplicar pesos ? [s/n]: ").lower() == 's'
+        use_weights = (input("Aplicar pesos ? [s/n]: ").lower() == 's') if (uw == '0') else uw
 
         print("Inputs: \n -> \"*\" : Finalizar execução\n -> \"-\" : Mudar ano/trimestre")
         print(" -> \"1\" : Filtrar por região \n -> \"2\" : Filtrar por estado\n -> \"3\" : Filtrar",
@@ -375,12 +372,12 @@ if __name__ == '__main__':
                 for label, val in sorted_res.items():
                     out.write(f"{label}: {val} ({(val/total_ans):%})\n")
                     percents.append(f"{(val/total_ans):2.2%}")
-            #plt.figure(figsize=(8, 5))        # Plot com Matplotlib
-            #plt.barh([str(i) for i in sorted_res.keys()], np.array(list(sorted_res.values())))
-            #plt.title(title)
-            #plt.show()
+
             fig = px.bar({"Divisões" : list(sorted_res.keys()), "Respostas": list(sorted_res.values())},
-                         x="Respostas", y="Divisões", labels=False, title=title, orientation='h', text=percents) # Plot com Plotly
+                         x="Respostas", y="Divisões", labels=False, title=title, orientation='h', text=percents)
             fig.update_layout(font_size=(5+round((48*2)/len(w_filter))), margin={"b":120,"t":120,"r":80,"l":220}, title_x=0.5)
             fig.show()
             print("Escolha outro filtro, digite \"-\"  para mudar o ano/trimestre ou digite \"*\" para sair\n")
+        y = 0
+        t = 0
+        uw = None
