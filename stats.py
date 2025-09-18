@@ -135,6 +135,17 @@ titles = {
    '9': 'Respostas por Renda Efetiva Principal'
 }
 
+income_bins_map = {
+    "1": "Até R&#36;1.518",
+    "2": "R&#36;1.519-R&#36;3.036",
+    "3": "R&#36;3.037-R&#36;6.072",
+    "4": "R&#36;6.073-R&#36;12.144",
+    "5": "R&#36;12.145-R&#36;24.288",
+    "6": "R&#36;24.289-R&#36;48.576",
+    "7": "R&#36;48.577+",
+    "0": "Não aplicável"
+}
+
 def age_bin(age:str):
     """
     Dada uma string representando a  idade, retorna uma string do intervalo
@@ -166,12 +177,12 @@ def income_bin(income: str, minimum_income=1518):
     Returns:
         Retorna uma string com o intervalo que a renda se encontra
     """
-    if income in [0, "0"]: return "Não aplicável"
+    if income in [None, 0, "0"]: return "Não aplicável"
     income = int(income)
     if income <=  minimum_income: return "Até R&#36;1.518"
     elif income <= 2 * minimum_income: return "R&#36;1.519-R&#36;3.036" 
     elif income <= 4 * minimum_income: return "R&#36;3.037-R&#36;6.072"
-    elif income <= 8 * minimum_income: return "R&#36;6.073-R&#36;2.144"
+    elif income <= 8 * minimum_income: return "R&#36;6.073-R&#36;12.144"
     elif income <= 16 * minimum_income: return "R&#36;12.145-R&#36;24.288"
     elif income <= 32 * minimum_income: return "R&#36;24.289-R&#36;48.576"
     else: return "R&#36;48.577+"
@@ -293,6 +304,70 @@ def group_columns_weighted(path: str, col_names: list[str], filters: list[dict])
 
     return res, total_weight
 
+def group_columns_income(path:str, col_name:str, filter_dict: dict, income_col: str, income_range: str ):
+    """
+    """
+    parq = pd.read_parquet(path, columns=[col_name, income_col])
+    parq.fillna(0, inplace=True)
+    
+    income_col_mapped = parq[income_col].apply(income_bin)
+    parq_filtered = parq[income_col_mapped == income_range]
+
+    res = {}
+    k_filter = []
+    
+    total_lines = len(parq_filtered)
+    
+    col_vals = parq_filtered[col_name]
+    for val in col_vals:
+        if filter_dict is None:
+            if col_name == "V2009":
+                key = age_bin(val)
+            elif col_name in ["VD4019", "VD4016", 'VD4017']:
+                key = income_bin(val)
+            else:
+                key = str(val)
+        else:
+            key = filter_dict.get(val, "Outro")
+
+        res[key] = res.get(key, 0) + 1
+        if key not in k_filter:
+            k_filter.append(key)
+            
+    return res, total_lines
+
+def group_columns_weighted_income(path: str, col_name: str, filter_dict: dict, income_col: str, income_range: str):
+    """
+    """
+    parq = pd.read_parquet(path, columns=[col_name, income_col, "V1028"])
+    parq.fillna({'V1028': 0}, inplace=True)
+    parq.fillna(0, inplace=True)
+    
+    income_col_mapped = parq[income_col].apply(income_bin)
+    parq_filtered = parq[income_col_mapped == income_range]
+
+    res = {}
+    k_filter = []
+    
+    total_weight = parq_filtered["V1028"].sum()
+
+    for val, peso in zip(parq_filtered[col_name], parq_filtered["V1028"]):
+        if filter_dict is None:
+            if col_name == "V2009":
+                key = age_bin(val)
+            elif col_name in ["VD4019", "VD4016", 'VD4017']:
+                key = income_bin(val)
+            else:
+                key = str(val)
+        else:
+            key = filter_dict.get(val, "Outro")
+
+        res[key] = res.get(key, 0) + peso
+        if key not in k_filter:
+            k_filter.append(key)
+    
+    return res, total_weight
+
 if __name__ == '__main__':
     args = sys.argv                                                     # Verifica se algum dos argumentos principais
     y = args[1] if (len(args) >= 2) else "0"                            # foi passado pela linha de comando e se foi
@@ -300,6 +375,7 @@ if __name__ == '__main__':
     uw = (args[3] == 's') if (len(args) >= 4) else "0"                  # Pode-se passar nenhum, 1, 2 ou 3.
     run0 = True                                                         # Variável para ser possível alterar o ano em uma mesma execução
     filts = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]               # Possíveis valores para filtros
+    income_filts = ['7', '8', '9']
     while (run0):
         run1 = True                                                     # Variável para alterar apenas o filtro na mesma execução
         if y == "0":                                                    # Caso o ano não seja passado pelo terminal
@@ -324,7 +400,8 @@ if __name__ == '__main__':
         print("Inputs: \n -> \"*\" : Finalizar execução\n -> \"-\" : Mudar ano/trimestre")
         print(" -> \"1\" : Filtrar por região \n -> \"2\" : Filtrar por estado\n -> \"3\" : Filtrar",
             "por sexo\n -> \"4\" : Filtrar por raça\n -> \"5\" : Filtrar por escolaridade\n -> \"6\" : Filtrar por idade\n",
-            "-> \"7\" : Filtrar por renda habitual total\n -> \"8\" : Filtrar por renda habitual principal\n -> \"9\" : Filtrar por renda efetiva principal\n -> \'10\' : Dois Filtros")
+            "-> \"7\" : Filtrar por renda habitual total\n -> \"8\" : Filtrar por renda habitual principal\n",
+            " -> \"9\" : Filtrar por renda efetiva principal\n -> \'10\' : Dois Filtros\n -> \'11\' : Dois Filtros com Faixa de renda")
         w_filter = []
         while(run1):
             usr_ans = input("Filtro utilizado:")
@@ -361,6 +438,34 @@ if __name__ == '__main__':
                     w_filter, total_ans = group_columns_weighted(parquet_path, [cols[ans] for ans in ans_d], [filt[ans] for ans in ans_d])
                 else:
                     w_filter, total_ans = group_columns(parquet_path, [cols[ans] for ans in ans_d], [filt[ans] for ans in ans_d])
+            elif (usr_ans == "11"):
+                print(" -> Digite o número dos dois filtros (um deve ser de renda)\n -> Opções: 1; 3; 4; 5; 6 junto com 7; 8; 9 <-\n")
+                ans_d = [input(" -> Filtro de Renda : "), input(" -> Segundo Filtro : ")]
+                
+                income_ans = ans_d[0] if ans_d[0] in income_filts else ans_d[1]
+                second_ans = ans_d[1] if ans_d[0] in income_filts else ans_d[0]
+
+                if not (income_ans in income_filts and second_ans in filts and second_ans not in income_filts and second_ans != "2"):
+                    print(" -> Combinação de filtros inválida. Escolha um filtro de renda (7, 8 ou 9) e outro filtro (1, 3, 4, 5, 6).\n")
+                    continue
+                
+                print("Escolha a faixa de renda:")
+                for key, val in income_bins_map.items():
+                    print(f" -> '{key}' : {val}")
+                income_range_choice = input(" -> Faixa de Renda: ")
+                if income_range_choice not in income_bins_map:
+                    print("Faixa de renda inválida.")
+                    continue
+                
+                income_range_str = income_bins_map[income_range_choice]
+                
+                base_title = f'{titles[second_ans]} dentro da faixa de Renda: {income_range_str}'
+                title = f'{base_title} - {y} - T{t}{weight_txt}'
+                
+                if use_weights:
+                    w_filter, total_ans = group_columns_weighted_income(parquet_path, cols[second_ans], filt[second_ans], cols[income_ans], income_range_str)
+                else:
+                    w_filter, total_ans = group_columns_income(parquet_path, cols[second_ans], filt[second_ans], cols[income_ans], income_range_str)
             else:
                 print("Filtro não definido.")
                 continue
