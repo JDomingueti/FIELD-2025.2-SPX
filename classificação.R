@@ -1,17 +1,18 @@
 library(dplyr)
 library(tidyr)
+source("colunas_id.R")
 
-# Função para tratar idades/datas de nascimento ignoradas
+#Função para tratar idades/datas de nascimento ignoradas
 tratar_idades_ignoradas <- function(df) {
   # Assumindo que V2009 é a idade e que valores como 999 indicam idade ignorada
   df <- df %>%
     mutate(
       idade_ignorada = V2009 >= 999 | is.na(V2009),
-      ano_nascimento_estimado = ifelse(idade_ignorada, 
-                                       2023 - ifelse(V2009 >= 999, NA, V2009), 
-                                       2023 - V2009)
+      ano_nascimento_estimado = ifelse(idade_ignorada,
+                                       as.numeric(periodos_analise$ano_inicio) - ifelse(V2009 >= 999, NA, V2009),
+                                       as.numeric(periodos_analise$ano_inicio) - V2009)
     )
-  
+
   return(df)
 }
 
@@ -134,11 +135,12 @@ classificar_grupos_domesticos <- function(df_domicilio) {
 # ================== CLASSIFICAÇÃO DE INDIVÍDUOS ==================
 
 classificar_individuos <- function(df_grupo) {
+  df_grupo <- df_grupo %>% arrange(periodo)
   periodos <- unique(df_grupo$periodo)
   n_periodos <- length(periodos)
   
   if (n_periodos == 1) {
-    df_grupo$classe_individuo <- 1
+    df_grupo$classe_individuo <- 0 #individuos que so aparecem em um periodo
     df_grupo$individuo_id <- 1:nrow(df_grupo)
     return(df_grupo)
   }
@@ -237,6 +239,10 @@ classificar_painel_pnadc <- function(arquivo_rds) {
   cat("Tratando idades ignoradas...\n")
   pessoas_long <- tratar_idades_ignoradas(pessoas_long)
   
+  # Imputar anos de nascimento ignorados
+  cat("Imputando anos de nascimento ignorados...\n")
+  pessoas_long <- imputar_ano_nascimento(pessoas_long)
+  
   # Classificar grupos domésticos
   cat("Classificando grupos domésticos...\n")
   grupos_domesticos <- pessoas_long %>%
@@ -313,8 +319,10 @@ classificar_painel_pnadc <- function(arquivo_rds) {
   ))
 }
 
-
-resultado <- classificar_painel_pnadc("pessoas_20234_20244.rds")
+resultado <- classificar_painel_pnadc(paste0("pessoas_", 
+                                             periodos_analise$ano_inicio, periodos_analise$tri_inicio,
+                                             "_", periodos_analise$ano_fim, periodos_analise$tri_fim,
+                                             ".rds"))
 
 str(resultado$dados_classificados)
 print(resultado$resumo_domicilios)
