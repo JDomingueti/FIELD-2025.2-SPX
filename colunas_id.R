@@ -1,7 +1,12 @@
 library(PNADcIBGE)
 library(dplyr)
-library(purrr) 
+library(purrr)
+library(here)
+library(arrow)
 source("utils.R")
+
+std_path <- getwd()
+lpath <- here(std_path, "PNAD_data", "input_PNADC_trimestral.txt")
 
 periodos_analise = obter_periodos() # obtendo periodos desejados pelo usuario
 
@@ -26,27 +31,30 @@ vars_needed <- c("Ano", "Trimestre", "UF", "UPA", "V1008", "V1014",
                  "V20082"   # Ano de nascimento
 )
 
-pnadc_t_survey  <- get_pnadc(year=ano_t,  quarter=tri_t,  vars=vars_needed)
-pnadc_t4_survey <- get_pnadc(year=ano_t4, quarter=tri_t4, vars=vars_needed)
+pnadc_t0_survey <- read_pnadc(make_path(ano_t, tri_t)[1], lpath, vars=vars_needed)
+pnadc_t1_survey <- read_pnadc(make_path(ano_t+floor((tri_t)/4), tri_t%%4+1)[1], lpath, vars=vars_needed)
+pnadc_t2_survey <- read_pnadc(make_path(ano_t+floor((tri_t+1)/4), (tri_t+1)%%4+1)[1], lpath, vars=vars_needed)
+pnadc_t3_survey <- read_pnadc(make_path(ano_t+floor((tri_t+2)/4), (tri_t+2)%%4+1)[1], lpath, vars=vars_needed)
+pnadc_t4_survey <- read_pnadc(make_path(ano_t+1, tri_t)[1], lpath, vars=vars_needed)
+
+#pnadc_t_survey  <- get_pnadc(year=ano_t,  quarter=tri_t,  vars=vars_needed)
+#pnadc_t4_survey <- get_pnadc(year=ano_t4, quarter=tri_t4, vars=vars_needed)
 
 # Extrair os dados dos objetos survey
-pnadc_t  <- pnadc_t_survey$variables
-pnadc_t4 <- pnadc_t4_survey$variables
+#pnadc_t0 <- pnadc_t0_survey$variables
+#pnadc_t1 <- pnadc_t1_survey$variables
+#pnadc_t2 <- pnadc_t2_survey$variables
+#pnadc_t3 <- pnadc_t3_survey$variables
+#pnadc_t4 <- pnadc_t4_survey$variables
 
-pessoas_long_bruto <- bind_rows(pnadc_t, pnadc_t4)
+pessoas_long_bruto <- bind_rows(pnadc_t0_survey, pnadc_t1_survey, pnadc_t2_survey, pnadc_t3_survey, pnadc_t4_survey)
+#pessoas_long_bruto <- bind_rows(pnadc_t0, pnadc_t1, pnadc_t2, pnadc_t3, pnadc_t4)
 
 # realiza transformacoes no ds combinado
-pessoas_long <- pessoas_long_bruto %>%
-  mutate(
-    # Cria o ID do domicilio
-    domicilio_id = paste(UF, UPA, V1008, V1014, sep = "_"),
-    
-    periodo = paste0("T", Trimestre, "_", Ano)
-  ) %>%
+pessoas_long <- pessoas_long_bruto %>% mutate(domicilio_id = paste(UF, UPA, V1008, V1014, sep = "_"),periodo = paste0("T", Trimestre, "_", Ano)) %>% select(domicilio_id, periodo, all_of(vars_needed))  
 
-select(domicilio_id, periodo, all_of(vars_needed))  
-  
-saveRDS(pessoas_long, file = paste0("pessoas_", ano_t, tri_t, "_", ano_t4, tri_t4, ".rds"))
+write_parquet(pessoas_long, here(std_path, "PNAD_data", "Pareamentos", paste0("pessoas_", ano_t, tri_t, "_", ano_t4, tri_t4, ".parquet")))
+#saveRDS(pessoas_long, file = paste0("pessoas_", ano_t, tri_t, "_", ano_t4, tri_t4, ".rds"))
 
 rm(pessoas_long_bruto) #liberar espaco
 

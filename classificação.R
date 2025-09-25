@@ -1,5 +1,6 @@
 library(dplyr)
 library(tidyr)
+library(here)
 source("colunas_id.R")
 
 #Função para tratar idades/datas de nascimento ignoradas
@@ -218,7 +219,8 @@ classificar_painel_pnadc <- function(arquivo_rds) {
     stop("Arquivo não encontrado: ", arquivo_rds)
   }
   
-  pessoas_long <- readRDS(arquivo_rds)
+  #pessoas_long <- readRDS(arquivo_rds)
+  pessoas_long <- read_parquet(arquivo_rds)
   
   # Verificar estrutura dos dados
   colunas_necessarias <- c("domicilio_id", "V2003", "V2007", "V2009", "V2005", "periodo")
@@ -238,10 +240,6 @@ classificar_painel_pnadc <- function(arquivo_rds) {
   # Tratar idades ignoradas
   cat("Tratando idades ignoradas...\n")
   pessoas_long <- tratar_idades_ignoradas(pessoas_long)
-  
-  # Imputar anos de nascimento ignorados
-  cat("Imputando anos de nascimento ignorados...\n")
-  pessoas_long <- imputar_ano_nascimento(pessoas_long)
   
   # Classificar grupos domésticos
   cat("Classificando grupos domésticos...\n")
@@ -302,13 +300,18 @@ classificar_painel_pnadc <- function(arquivo_rds) {
   }
   
   # Salvar resultados
-  arquivo_saida <- gsub("\\.rds$", "_classificado.rds", arquivo_rds)
-  saveRDS(resultado_final, arquivo_saida)
+  
+  #arquivo_saida <- gsub("\\.rds$", "_classificado.rds", arquivo_rds)
+  arquivo_saida <- gsub("\\.parquet$", "_classificado.parquet", arquivo_rds)
+  #saveRDS(resultado_final, arquivo_saida)
+  write_parquet(resultado_final, arquivo_saida)
   cat("\nResultados salvos em:", arquivo_saida, "\n")
   
   # Salvar também resumo de grupos domésticos
-  arquivo_grupos <- gsub("\\.rds$", "_grupos_domesticos.rds", arquivo_rds)
-  saveRDS(grupos_domesticos, arquivo_grupos)
+  #arquivo_grupos <- gsub("\\.rds$", "_grupos_domesticos.rds", arquivo_rds)
+  arquivo_grupos <- gsub("\\.parquet$", "_grupos_domesticos.parquet", arquivo_rds)
+  #saveRDS(grupos_domesticos, arquivo_grupos)
+  write_parquet(grupos_domesticos, arquivo_grupos)
   cat("Classificação de grupos domésticos salva em:", arquivo_grupos, "\n")
   
   return(list(
@@ -319,10 +322,14 @@ classificar_painel_pnadc <- function(arquivo_rds) {
   ))
 }
 
-resultado <- classificar_painel_pnadc(paste0("pessoas_", 
+#resultado <- classificar_painel_pnadc(paste0("pessoas_", 
+#                                             periodos_analise$ano_inicio, periodos_analise$tri_inicio,
+#                                             "_", periodos_analise$ano_fim, periodos_analise$tri_fim,
+#                                             ".rds"))
+resultado <- classificar_painel_pnadc(here(getwd(), "PNAD_data", "Pareamentos", paste0("pessoas_", 
                                              periodos_analise$ano_inicio, periodos_analise$tri_inicio,
                                              "_", periodos_analise$ano_fim, periodos_analise$tri_fim,
-                                             ".rds"))
+                                             ".parquet")))
 
 str(resultado$dados_classificados)
 print(resultado$resumo_domicilios)
