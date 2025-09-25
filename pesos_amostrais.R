@@ -1,6 +1,7 @@
 library(dplyr)
 library(tidyr)
 library(ggplot2)
+library(arrow)
 
 ano <- as.integer(readline("Ano a ser examinado: "))
 tri <- as.integer(readline("Tri a ser examinado: "))
@@ -14,7 +15,7 @@ if (!file.exists(arquivo_entrada)) {
 }
 
 cat("Carregando dados de:", arquivo_entrada, "\n")
-dados_classificados <- readRDS(arquivo_entrada)
+dados_classificados <- read_parquet(arquivo_entrada)
 
 # Filtrar para apenas individuos de classe 1
 cat("Filtrando para manter apenas individuos de Classe 1...\n")
@@ -29,82 +30,42 @@ if (nrow(dados_classe1) == 0) {
 
 cat("Analisando a evolução dos pesos da primeira para a última entrevista...\n")
 
-# Criar um ID único para cada indivíduo para facilitar o agrupamento
-dados_classe1 <- dados_classe1 %>%
-  mutate(ID_UNICO = paste(domicilio_id, individuo_id, sep = "-"))
+# Ordenar por período
+dados_classe1 <- dados_classe1 %>% arrange(ID_UNICO, periodo)
 
-# para cada indivíduo, encontrar o peso V1028 da primeira e da ultima entrevista
-pesos_evolucao <- dados_classe1 %>%
+# Selecionar apenas os indivíduos que têm as 5 entrevistas
+dados_completos <- dados_classe1 %>%
   group_by(ID_UNICO) %>%
-  arrange(periodo) %>% #ordenar por odem cronologica
-  # Resumir os dados para cada individuo
-  summarise(
-    periodo_inicial = first(periodo),
-    peso_inicial = first(V1028),      
-    periodo_final = last(periodo),    
-    peso_final = last(V1028),         
-    n_entrevistas = n()               
-  ) %>%
-  ungroup() 
+  filter(n() == 5) %>%
+  ungroup()
 
-# calcular a variacao absoluta e percentual
-pesos_evolucao <- pesos_evolucao %>%
-  mutate(
-    variacao_absoluta = peso_final - peso_inicial,
-    variacao_percentual = (peso_final - peso_inicial) / peso_inicial * 100
-  )
+cat("Indivíduos com todas as 5 entrevistas:", n_distinct(dados_completos$ID_UNICO), "\n")
 
-# --- 4. EXIBIÇAO DOS RESULTADOS ---
+# Amostra de até 50 indivíduos
+dados_plot <- dados_completos %>%
+  group_by(ID_UNICO) %>%
+  slice_sample(n = 1) %>% # garante amostra de IDs
+  ungroup() %>%
+  slice_sample(n = min(50, n_distinct(.$ID_UNICO))) %>%
+  pull(ID_UNICO)
 
-cat("\n=== RESULTADOS DA ANÁLISE DE PESOS (CLASSE 1) ===\n")
+dados_plot <- dados_completos %>%
+  filter(ID_UNICO %in% dados_plot)
 
-cat("Amostra da tabela de evolução dos pesos:\n")
-print(head(pesos_evolucao))
-
-# mostrar um resumo estatistico da var percentual
-cat("\nResumo estatístico da variação percentual dos pesos:\n")
-summary(pesos_evolucao$variacao_percentual) %>% print()
-
-# Mostrar os individuos com maior aumento e maior reducao percentual
-cat("\nTop 5 maiores aumentos percentuais no peso:\n")
-pesos_evolucao %>% arrange(desc(variacao_percentual)) %>% head(5) %>% print()
-
-cat("\nTop 5 maiores reduções percentuais no peso:\n")
-pesos_evolucao %>% arrange(variacao_percentual) %>% head(5) %>% print()
-
-
-# --- 5. VISUALIZAÇÃO GRÁFICA ---
-# Vamos visualizar para apenas 50 individuos
-
-cat("\nGerando gráfico da evolução dos pesos para uma amostra de 50 indivíduos...\n")
-
-# pegando a amostra
-dados_plot <- pesos_evolucao %>%
-  slice_sample(n = min(50, nrow(.))) %>% # Pega 50 ou o total se for menor que 50
-  arrange(peso_inicial) %>%
-  mutate(ID_UNICO = factor(ID_UNICO, levels = ID_UNICO)) 
-
-# grafico de halteres
-grafico_evolucao <- ggplot(dados_plot, aes(y = ID_UNICO)) +
-  # Linha que conecta os pontos
-  geom_segment(aes(x = peso_inicial, xend = peso_final, yend = ID_UNICO), 
-               color = "grey", linewidth = 1) +
-  # ponto para o peso inicial
-  geom_point(aes(x = peso_inicial), color = "blue", size = 3) +
-  # ponto para o peso final
-  geom_point(aes(x = peso_final), color = "orange", size = 3) +
+# Gráfico de linhas
+grafico_evolucao <- ggplot(dados_plot, aes(x = periodo, y = V1028, group = ID_UNICO, color = ID_UNICO)) +
+  geom_line(alpha = 0.6) +
+  geom_point(size = 2) +
   labs(
-    title = paste0("Evolução do Peso Amostral (Primeira vs. Ultima Entrevista)", "-", ano, tri, "-", ano + 1, "-", tri),
-    subtitle = "Análise para indivíduos de Classe 1 (Amostra de 50 pessoas)",
-    x = "Peso Amostral (V1028)",
-    y = "Indivíduo (ID Único)",
-    caption = "Ponto Azul = Peso Inicial  |  Ponto Laranja = Peso Final"
+    title = paste0("Evolução do Peso Amostral nas 5 Entrevistas - ", ano, "T", tri),
+    subtitle = "Indivíduos de Classe 1 (Amostra de até 50 pessoas com todas as 5 entrevistas)",
+    x = "Período da Entrevista",
+    y = "Peso Amostral (V1028)"
   ) +
   theme_minimal() +
   theme(
     plot.title = element_text(face = "bold"),
-    axis.text.y = element_blank(),
-    axis.ticks.y = element_blank()
+    legend.position = "none"
   )
 
 print(grafico_evolucao)

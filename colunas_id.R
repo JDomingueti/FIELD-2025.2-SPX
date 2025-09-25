@@ -22,6 +22,7 @@ vars_needed <- c("Ano", "Trimestre", "UF", "UPA", "V1008", "V1014",
                  "V2005",   # condição no domicílio
                  "V1028", # peso amostral
                  "VD4019", # Rend. habitual qq trab.
+                 "VD4020", # Rend. efetivo qq trab.
                  "VD4016", # Rend. habitual trab. princ.
                  "VD4017", # Rend. efetivo trab. princ.
                  "V4010",  # Codigo Ocupacao princ.
@@ -31,11 +32,19 @@ vars_needed <- c("Ano", "Trimestre", "UF", "UPA", "V1008", "V1014",
                  "V20082"   # Ano de nascimento
 )
 
-pnadc_t0_survey <- read_pnadc(make_path(ano_t, tri_t)[1], lpath, vars=vars_needed)
-pnadc_t1_survey <- read_pnadc(make_path(ano_t+floor((tri_t)/4), tri_t%%4+1)[1], lpath, vars=vars_needed)
-pnadc_t2_survey <- read_pnadc(make_path(ano_t+floor((tri_t+1)/4), (tri_t+1)%%4+1)[1], lpath, vars=vars_needed)
-pnadc_t3_survey <- read_pnadc(make_path(ano_t+floor((tri_t+2)/4), (tri_t+2)%%4+1)[1], lpath, vars=vars_needed)
-pnadc_t4_survey <- read_pnadc(make_path(ano_t+1, tri_t)[1], lpath, vars=vars_needed)
+t0 <- shift_quarter(ano_t, tri_t, 0)
+t1 <- shift_quarter(ano_t, tri_t, 1)
+t2 <- shift_quarter(ano_t, tri_t, 2)
+t3 <- shift_quarter(ano_t, tri_t, 3)
+t4 <- shift_quarter(ano_t, tri_t, 4)
+
+
+pnadc_t0_survey <- read_pnadc(make_path(t0$ano, t0$tri)[1], lpath, vars=vars_needed)
+pnadc_t1_survey <- read_pnadc(make_path(t1$ano, t1$tri)[1], lpath, vars=vars_needed)
+pnadc_t2_survey <- read_pnadc(make_path(t2$ano, t2$tri)[1], lpath, vars=vars_needed)
+pnadc_t3_survey <- read_pnadc(make_path(t3$ano, t3$tri)[1], lpath, vars=vars_needed)
+pnadc_t4_survey <- read_pnadc(make_path(t4$ano, t4$tri)[1], lpath, vars=vars_needed)
+
 
 #pnadc_t_survey  <- get_pnadc(year=ano_t,  quarter=tri_t,  vars=vars_needed)
 #pnadc_t4_survey <- get_pnadc(year=ano_t4, quarter=tri_t4, vars=vars_needed)

@@ -1,25 +1,92 @@
 library(dplyr)
 library(tidyr)
 library(here)
+library(arrow)
 source("colunas_id.R")
 
-#Função para tratar idades/datas de nascimento ignoradas
-tratar_idades_ignoradas <- function(df) {
+# Estima o ano de nascimento inicial com base na idade e ano do painel
+estimar_ano_nascimento_inicial <- function(df, ano_inicio_painel) {
   # Assumindo que V2009 é a idade e que valores como 999 indicam idade ignorada
   df <- df %>%
     mutate(
       idade_ignorada = V2009 >= 999 | is.na(V2009),
-      ano_nascimento_estimado = ifelse(idade_ignorada,
-                                       as.numeric(periodos_analise$ano_inicio) - ifelse(V2009 >= 999, NA, V2009),
-                                       as.numeric(periodos_analise$ano_inicio) - V2009)
+      # para idades ignorada será NA para ser tratado na imputacao
+      ano_nascimento = if_else(idade_ignorada, NA_real_, as.numeric(ano_inicio_painel) - V2009),
+      # estima temporaria para usar na busca de doadores do ano de nascimento
+      ano_nascimento_estimado_tmp = as.numeric(ano_inicio_painel) - V2009
     )
 
   return(df)
 }
 
+# Imputa o ano de nascimento para registros ignorados usando doadores
+imputar_ano_nascimento_doador <- function(df_domicilio) {
+    doadoras <- df_domicilio %>% filter(!idade_ignorada)
+    recebedoras_indices <- which(df_domicilio$idade_ignorada)
+    
+    if (lenght(recebedoras_indices) == 0 || nrow(doadoras) == 0){
+      return(select(df_domicilio, -ano_nascimento_estimado_tmp)) #remove col temp
+    }
+    
+    for (i in recebedoras_indices) {
+      pessoa_alvo <- df_domicilio[i,]
+      
+      # criterios para encontrar doadoras potenciais conforme metodologia do IPEA
+      doadoras_potenciais <- doadoras %>%
+        filter(
+          periodo != pessoa_alvo$periodo, # nao pode ser da mesma entrevista
+          V2007 == pessoa_alvo$V2007, # deve ser do mesmo sexo
+          # diferenca de ate 3 anos no ano estimado
+          abs(ano_nascimento - pessoa_alvo$ano_nascimento_estimado_tmp) <=3
+        )
+      
+    # verificar condicao no domicilio (grupos compativeis)
+    if (nrow(doadoras_potenciais) > 0) {
+      condicoes_compativeis <- list(
+        c(1,2,3), #responsavel, conjuge, uniao estavel
+        c(4,5,6), # filho, enteado
+        c(8,9) # pai/mae, sogro/sogra
+      )
+      
+      doadoras_filtradas <- doadoras_potenciais %>% 
+        rowwise() %>%
+        filter ({
+          cond_alvo <- as.numeric(pessoa_alvo$V2005)
+          cond_doadora <- as.numeric(V2005)
+          
+          # se a condicao for a mesma
+          if (cond_alvo == cond_doadora)return(TRUE)
+          
+          # verifica se sao do mesmo grupo compativel
+          pertencem_mesmo_grupo <- any(sapply(condicoes_compativeis, function(grupo) {
+            cond_alvo %in% grupo && cond_doadora %in% grupo
+          }))
+          
+          pertencem_mesmo_grupo
+        }) %>%
+        ungroup()
+      
+      # se houver doadoras apos os filtros
+      if (nrow(doadoras_filtradas) > 0) {
+        # ordena pela menor diff de ano e escolhe a melhor doadora
+        melhor_doadora <- doadoras_filtradas %>%
+          mutate(diff_ano = abs(ano_nascimento - pessoa_alvo$ano_nascimento_estimado_tmp)) %>%
+          arrange(diff_ano) %>%
+          slice(1)
+        
+        # ano de nascimento da mlehor doadora atribuido
+        df_domicilio$ano_nascimento[i] <- melhor_doadora$ano_nascimento
+      }
+    }
+      
+  }
+  # pessoa com data ignorada sem doadora permance NA
+  return(select(df_domicilio, -ano_nascimento_estimado_tmp))
+}
+
 # Função para criar chaves de identificação
-criar_chave_pessoa <- function(sexo, idade, condicao, ordem) {
-  paste(sexo, idade, condicao, ordem, sep = "_")
+criar_chave_pessoa <- function(sexo, ano_nascimento, condicao, ordem) {
+  paste(sexo, ano_nascimento, condicao, ordem, sep = "_")
 }
 
 # Função para verificar se duas pessoas são potencialmente a mesma
@@ -27,17 +94,20 @@ mesma_pessoa <- function(p1, p2, tolerancia_idade = 3) {
   # Critérios básicos: mesmo sexo
   if (as.character(p1$V2007) != as.character(p2$V2007)) return(FALSE)
   
-  # Tolerância na idade (para lidar com erros de declaração)
-  diff_idade <- abs(p1$V2009 - p2$V2009)
-  if (diff_idade > tolerancia_idade) return(FALSE)
+  # se algum na, nao podemos comparar
+  if (is.na(p1$ano_nascimento) || is.na(p2$ano_nascimento)) return(FALSE)
+  
+  # tolerancia no ano de nascimento
+  diff_ano <- abs(p1$ano_nascimento - p2$ano_nascimento)
+  if (diff_ano > tolerancia_ano) return(FALSE)
   
   # Converter condições para códigos numéricos para comparação
-  cond1 <- p1$V2005
-  cond2 <- p2$V2005
+  cond1 <- as.numeric(p1$V2005)
+  cond2 <- as.numeric(p2$V2005)
   
   # Mapear condições textuais para códigos
-  if (is.factor(cond1)) cond1 <- as.numeric(cond1)
-  if (is.factor(cond2)) cond2 <- as.numeric(cond2)
+  #if (is.factor(cond1)) cond1 <- as.numeric(cond1)
+  #if (is.factor(cond2)) cond2 <- as.numeric(cond2)
   
   # Verificar condições compatíveis no domicílio
   condicoes_compativeis <- list(
@@ -141,9 +211,7 @@ classificar_individuos <- function(df_grupo) {
   n_periodos <- length(periodos)
   
   if (n_periodos == 1) {
-    df_grupo$classe_individuo <- 0 #individuos que so aparecem em um periodo
-    df_grupo$individuo_id <- 1:nrow(df_grupo)
-    return(df_grupo)
+    return(NULL) # dropar individuos com apenas uma entrevista
   }
   
   # Agrupar pessoas por características similares
@@ -237,9 +305,20 @@ classificar_painel_pnadc <- function(arquivo_rds) {
   cat("Dados carregados:", nrow(pessoas_long), "registros de", 
       length(unique(pessoas_long$domicilio_id)), "domicílios\n")
   
-  # Tratar idades ignoradas
-  cat("Tratando idades ignoradas...\n")
-  pessoas_long <- tratar_idades_ignoradas(pessoas_long)
+  # determinar o ano de inicio do painel a partir dos dados
+  ano_inicio_painel <- min(as.numeric(substr(pessoas_long$periodo, 1, 4)))
+  cat("Ano de início do painel detectado:", ano_inicio_painel, "\n")
+  
+  # estimar o ano de nascimento inicial para todos
+  cat("Estimando o ano de nascimento inicial...\n")
+  pessoas_long <- estimar_ano_nascimento_inicial(pessoas_long, ano_inicio_painel)
+  
+  # imputar o ano de nascimento usando a logica de doadores por domicilio
+  cat("Imputando anos de nascimento ignorados com base em doadores...\n")
+  pessoas_long <- pessoas_long %>%
+    group_by(domicilio_id) %>%
+    group_modify(~imputar_ano_nascimento_doador(.x)) %>%
+    ungroup()
   
   # Classificar grupos domésticos
   cat("Classificando grupos domésticos...\n")
@@ -268,7 +347,10 @@ classificar_painel_pnadc <- function(arquivo_rds) {
     filter(n_grupos == 1) %>%  # Manter apenas domicílios com um grupo
     group_by(domicilio_id, grupo_domestico_id) %>%
     group_modify(~classificar_individuos(.x)) %>%
-    ungroup()
+    ungroup() %>%
+  
+    # Criar ID Global
+    mutate(ID_UNICO = paste(domicilio_id, grupo_domestico_id, individuo_id, sep = '-'))
   
   # Estatísticas resumo
   cat("\n=== RESULTADOS DA CLASSIFICAÇÃO ===\n")
