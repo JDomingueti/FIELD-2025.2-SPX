@@ -11,7 +11,7 @@ apply_deflator <- function(df_path, input_txt_path, vars_needed, dict.path, defl
   pnadc.df <- pnadc.df %>%
     mutate(
       VD4019_real = VD4019 * Habitual,
-      VD4020_real = VD4020 * Efeivo,
+      VD4020_real = VD4020 * Efetivo,
       VD4016_real = VD4016 * Habitual,
       VD4017_real = VD4017 * Efetivo
     )
