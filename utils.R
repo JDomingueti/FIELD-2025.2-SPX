@@ -24,8 +24,9 @@ make_path <- function(year, trimester) {
 
 # funcao para andar n trimestres para frente ou para trás
 shift_quarter <- function(year, tri, n) {
-  q_abs <- (year * 4 + (tri - 1)) + n
-  new_year <- q_abs %% 4
+  # converte para um numero abs de trimestres desde o ano "0"
+  q_abs <- (year * 4) + (tri - 1) + n
+  new_year <- q_abs %/% 4
   new_tri <- (q_abs %% 4) + 1
   return(list(year = new_year, tri = new_tri))
 }

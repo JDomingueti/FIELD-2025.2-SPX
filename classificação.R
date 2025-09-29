@@ -90,7 +90,7 @@ criar_chave_pessoa <- function(sexo, ano_nascimento, condicao, ordem) {
 }
 
 # Função para verificar se duas pessoas são potencialmente a mesma
-mesma_pessoa <- function(p1, p2, tolerancia_idade = 3) {
+mesma_pessoa <- function(p1, p2, tolerancia_ano = 3) {
   # Critérios básicos: mesmo sexo
   if (as.character(p1$V2007) != as.character(p2$V2007)) return(FALSE)
   
