@@ -1,25 +1,31 @@
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-import pyarrow.parquet as pq
-import pyarrow.compute as pc
 from pathlib import Path
 
 MEDIA = False # Mude para false para calcular a mediana ao invés da média
 
+# filtro = {
+#     -1: "Não aplicável",
+#     1: "Diretores e Gerentes",
+#     2: "Profissionais das ciências e intelectuais",
+#     3: "Técnicos e profissionais de nivel médio",
+#     4: "Trabalhadores de apoio administrativo",
+#     5: "Trabalhadores dos serviços, vendedores dos comércios e mercados",
+#     6: "Trabalhadores qualificados da agropecuária, florestais, da caça e da pesca",
+#     7: "Trabalhadores qualificados, operários e artesãos da construção, das artes mecânicas e outros ofícios",
+#     8: "Operadores de instalações e máquinas e montadores",
+#     9: "Ocupações elementares",
+#     0: "Membros das forças armadas, policiais e bombeiros militares"
+# } # Se for mudar o filtro mude também as linhas 112-115 pela 111
+
 filtro = {
-    -1: "Não aplicável",
-    1: "Diretores e Gerentes",
-    2: "Profissionais das ciências e intelectuais",
-    3: "Técnicos e profissionais de nivel médio",
-    4: "Trabalhadores de apoio administrativo",
-    5: "Trabalhadores dos serviços, vendedores dos comércios e mercados",
-    6: "Trabalhadores qualificados da agropecuária, florestais, da caça e da pesca",
-    7: "Trabalhadores qualificados, operários e artesãos da construção, das artes mecânicas e outros ofícios",
-    8: "Operadores de instalações e máquinas e montadores",
-    9: "Ocupações elementares",
-    0: "Membros das forças armadas, policiais e bombeiros militares"
-}
+    9621: "Mensageiros, carregadores de bagagens e entregadores de encomendas",
+    8321: "Condutores de motocicletas",
+    8322: "Condutores de automóveis, taxis e caminhonetes",
+    4412: "Trabalhadores de serviços de correios",
+    4323: "Trabalhadores de serviços de transporte"
+    }
 
 def make_data_paths(year, trimester): ## Roubei a função rapidão, é bom q tirar daqui dps
     """
@@ -35,376 +41,155 @@ def make_data_paths(year, trimester): ## Roubei a função rapidão, é bom q ti
     
     return Path(raw_path), Path(parquet_path)
 
+def apply_deflator(df: pd.DataFrame, deflator_path, year, trim):
+    t = f"{(3*trim-2):02}-{(3*trim-1):02}-{(3*trim):02}"
+    deflat = pd.read_excel(deflator_path)
+    deflat = deflat[deflat["Ano"] == year]
+    deflat = deflat[deflat["trim"] == t].reset_index()
+    deflat["UF"] = deflat["UF"].astype(str)
+    df_temporario = pd.merge(df["UF"], deflat[["UF", "Habitual", "Efetivo"]], on='UF', how='left')
+    df["VD4016"] = df["VD4016"] * df_temporario["Habitual"]
+    df["VD4017"] = df["VD4017"] * df_temporario["Efetivo"]
+    df["VD4019"] = df["VD4019"] * df_temporario["Habitual"]
+    df["VD4020"] = df["VD4020"] * df_temporario["Efetivo"]
+
 if __name__ == "__main__":
     y_start = int(input("Ano início: "))
     t_start = int(input("Trimestre início: "))
     y_end = int(input("Ano término: "))
     t_end = int(input("Trimestre término: "))
-
+    # deflator_path = Path("PNAD_data/deflator_PNADC_2025_trimestral_040506.xls")
+    deflator_path = Path("PNAD_data/deflator_PNADC_2025_trimestral_040506.xlsx") # O warning pode ser ignorado, mas para parar tem que converter o arquivo
+                                                                                 # pro formato xlsx e tirar cabeçalhos/rodapés
     keys = []
-    data = {}
-    data_p = {}
-    dataREP = {}
-    dataREP_p = {}
-    dataRET = {}
-    dataRET_p = {}
-    dataRHP = {}
-    dataRHP_p = {}
-    dataRHT = {}
-    dataRHT_p = {}
+    datas = [
+        {},     # Ocupação
+        {},     # Ocupação - peso
+        {},     # Renda Habitual Principal
+        {},     # Renda Habitual Principal - peso
+        {},     # Renda Efetiva Principal
+        {},     # Renda Efetiva Principal - peso
+        {},     # Renda Habitual Total
+        {},     # Renda Habitual Total - peso
+        {},     # Renda Efetiva Total
+        {},     # Renda Efetiva Total - peso
+        ]
+    lista = list(filtro.keys())
+    len_key = 1000 if lista[0] < 1000 else 100 if lista[0] < 100 else 10 if lista[0] < 10 else 1
     for year in range(y_start, y_end + 1):
         for i in range(4):
             trim = (t_start - 1 + i)%4 + 1
             lbl = str(year) + "-" + str(trim)
             print(lbl)
-            data[lbl] = {}
-            data_p[lbl] = {}
-            dataREP[lbl] = {}
-            dataREP_p[lbl] = {}
-            dataRET[lbl] = {}
-            dataRET_p[lbl] = {}
-            dataRHP[lbl] = {}
-            dataRHP_p[lbl] = {}
-            dataRHT[lbl] = {}
-            dataRHT_p[lbl] = {}
-            parquet = pc.drop_null(pq.read_table(make_data_paths(year, trim)[1], columns=["V4010", # Código de ocupação
-                                                                                        "V1028",  # Peso com calibração
-                                                                                        "VD4016",  # Renda habitual principal
-                                                                                        "VD4017",  # Renda efetiva principal
-                                                                                        "VD4019",  # Renda habitual total
-                                                                                        "VD4020",  # Renda efetiva total
-                                                                                        ]))
-            ocp = {}
-            ocp_p = {}
-            rendaET = {}
-            rendaET_p = {}
-            rendaHT = {}
-            rendaHT_p = {}
-            rendaHP = {}
-            rendaHP_p = {}
-            rendaEP = {}
-            rendaEP_p = {}
-            for line, moneyEP, peso, moneyET, moneyHP, moneyHT, in zip(parquet["V4010"], parquet["VD4017"], parquet["V1028"], parquet["VD4020"], parquet["VD4016"], parquet["VD4019"]):
-                obj = int(line)//1000
+            parquet = pd.read_parquet(f"PNAD_data/{year}/PNADC_0{trim}{year}.parquet",
+                                      columns=["UF",
+                                               "V1028",   # Peso com calibração
+                                               "V4010",   # Código de ocupação
+                                               "VD4016",  # Renda habitual principal
+                                               "VD4017",  # Renda efetiva principal
+                                               "VD4019",  # Renda habitual total
+                                               "VD4020",  # Renda efetiva total
+                                               ]).dropna(ignore_index=True)
+            apply_deflator(parquet, deflator_path, year, trim)
+            values = [
+                {},     # Ocupação
+                {},     # Ocupação - peso
+                {},     # Renda Habitual Principal
+                {},     # Renda Habitual Principal - peso
+                {},     # Renda Efetiva Principal
+                {},     # Renda Efetiva Principal - peso
+                {},     # Renda Habitual Total
+                {},     # Renda Habitual Total - peso
+                {},     # Renda Efetiva Total
+                {},     # Renda Efetiva Total - peso
+            ]
+            parquet_np = parquet.to_numpy(dtype=np.float64)
+            for idx_line in range(len(parquet)):
+                line = parquet_np[idx_line, :]
+                obj = int(line[2])//len_key
+                if obj not in lista:
+                    continue
                 if obj in keys:
-                    ocp[filtro[obj]] += 1
-                    ocp_p[filtro[obj]] += float(peso)#float(parquet["V1028"][1])
+                    values[0][filtro[obj]] += 1                                   # Ocupação
+                    values[1][filtro[obj]] += line[1]                             # Ocupação - peso
                     if MEDIA:
-                        rendaEP[filtro[obj]] += float(moneyEP)
-                        rendaEP_p[filtro[obj]] += float(moneyEP)*float(peso)#float(parquet["V1028"][1])
-                        rendaET[filtro[obj]] += float(moneyET)
-                        rendaET_p[filtro[obj]] += float(moneyET)*float(peso)#float(parquet["V1028"][1])
-                        rendaHP[filtro[obj]] += float(moneyHP)
-                        rendaHP_p[filtro[obj]] += float(moneyHP)*float(peso)#float(parquet["V1028"][1])
-                        rendaHT[filtro[obj]] += float(moneyHT)
-                        rendaHT_p[filtro[obj]] += float(moneyHT)*float(peso)#float(parquet["V1028"][1])
+                        for i in [2,4,6,8]:
+                            values[i][filtro[obj]] += line[2+i//2]                # Renda
+                            values[i+1][filtro[obj]] += line[2+i//2]*line[1]      # Renda - peso
                     else:
-                        rendaEP[filtro[obj]].append(float(moneyEP))
-                        rendaEP_p[filtro[obj]].append(float(moneyEP)*float(peso))#float(parquet["V1028"][1])
-                        rendaET[filtro[obj]].append(float(moneyET))
-                        rendaET_p[filtro[obj]].append(float(moneyET)*float(peso))#float(parquet["V1028"][1])
-                        rendaHP[filtro[obj]].append(float(moneyHP))
-                        rendaHP_p[filtro[obj]].append(float(moneyHP)*float(peso))#float(parquet["V1028"][1])
-                        rendaHT[filtro[obj]].append(float(moneyHT))
-                        rendaHT_p[filtro[obj]].append(float(moneyHT)*float(peso))#float(parquet["V1028"][1])
+                        for i in [2,4,6,8]:
+                            values[i][filtro[obj]].append(line[2+i//2])           # Renda
+                            values[i+1][filtro[obj]].append(line[2+i//2]*line[1]) # Renda - peso
                 else:
-                    ocp[filtro[obj]] = 1
-                    ocp_p[filtro[obj]] = float(peso)#float(parquet["V1028"][1])
+                    values[0][filtro[obj]] = 1                                    # Ocupação
+                    values[1][filtro[obj]] = line[1]                              # Ocupação - peso
                     if MEDIA:
-                        rendaEP[filtro[obj]] = float(moneyEP)
-                        rendaEP_p[filtro[obj]] = float(moneyEP)*float(peso)#float(parquet["V1028"][1])
-                        rendaET[filtro[obj]] = float(moneyET)
-                        rendaET_p[filtro[obj]] = float(moneyET)*float(peso)#float(parquet["V1028"][1])
-                        rendaHP[filtro[obj]] = float(moneyHP)
-                        rendaHP_p[filtro[obj]] = float(moneyHP)*float(peso)#float(parquet["V1028"][1])
-                        rendaHT[filtro[obj]] = float(moneyHT)
-                        rendaHT_p[filtro[obj]] = float(moneyHT)*float(peso)#float(parquet["V1028"][1])
+                        for i in [2,4,6,8]:
+                            values[i][filtro[obj]] = line[2+i//2]                 # Renda
+                            values[i+1][filtro[obj]] = line[2+i//2]*line[1]       # Renda - peso
                     else:
-                        rendaEP[filtro[obj]] = [float(moneyEP)]
-                        rendaEP_p[filtro[obj]] = [float(moneyEP)*float(peso)]#float(parquet["V1028"][1])
-                        rendaET[filtro[obj]] = [float(moneyET)]
-                        rendaET_p[filtro[obj]] = [float(moneyET)*float(peso)]#float(parquet["V1028"][1])
-                        rendaHP[filtro[obj]] = [float(moneyHP)]
-                        rendaHP_p[filtro[obj]] = [float(moneyHP)*float(peso)]#float(parquet["V1028"][1])
-                        rendaHT[filtro[obj]] = [float(moneyHT)]
-                        rendaHT_p[filtro[obj]] = [float(moneyHT)*float(peso)]#float(parquet["V1028"][1])
+                        for i in [2,4,6,8]:
+                            values[i][filtro[obj]]= [(line[2+i//2])]              # Renda
+                            values[i+1][filtro[obj]] = [(line[2+i//2]*line[1])]   # Renda - peso
                     keys.append(obj)
-            data[lbl] = ocp
-            data_p[lbl] = ocp_p
-            dataREP[lbl] = rendaEP
-            dataREP_p[lbl] = rendaEP_p
-            dataRET[lbl] = rendaET
-            dataRET_p[lbl] = rendaET_p
-            dataRHP[lbl] = rendaHP
-            dataRHP_p[lbl] = rendaHP_p
-            dataRHT[lbl] = rendaHT
-            dataRHT_p[lbl] = rendaHT_p
+            for i in range(len(values)):
+                datas[i][lbl] = values[i]
             if (trim == t_end) and (year == y_end): break
             keys = []
-    ocp_df = pd.DataFrame(data)
-    ocp_p_df = pd.DataFrame(data_p)
-    figO = go.Figure()
-    figOp = go.Figure()
-    rendaEP_df = pd.DataFrame(dataREP)
-    rendaEP_p_df = pd.DataFrame(dataREP_p)
-    rendaET_df = pd.DataFrame(dataRET)
-    rendaET_p_df = pd.DataFrame(dataRET_p)
-    figREP = go.Figure()
-    figREPp = go.Figure()
-    figRET = go.Figure()
-    figRETp = go.Figure()
-    rendaHP_df = pd.DataFrame(dataRHP)
-    rendaHP_p_df = pd.DataFrame(dataRHP_p)
-    rendaHT_df = pd.DataFrame(dataRHT)
-    rendaHT_p_df = pd.DataFrame(dataRHT_p)
-    figRHP = go.Figure()
-    figRHPp = go.Figure()
-    figRHT = go.Figure()
-    figRHTp = go.Figure()
-
-    for line in range(len(ocp_p_df)):
-        name = ocp_df.iloc[line,:].name
-        name_p = ocp_p_df.iloc[line,:].name
-        x = []
-        rEP = []
-        rEPp = []
-        rET = []
-        rETp = []
-        rHP = []
-        rHPp = []
-        rHT = []
-        rHTp = []
-        xp = []
-        y = []
-        yp = []
-        for i, ip, ep, ep_p, et, et_p, hp, hp_p, ht, ht_p, date in zip(ocp_df.iloc[line,:], ocp_p_df.iloc[line,:],
-                                                                        rendaEP_df.iloc[line,:], rendaEP_p_df.iloc[line,:],
-                                                                        rendaET_df.iloc[line,:], rendaET_p_df.iloc[line,:],
-                                                                        rendaHP_df.iloc[line,:], rendaHP_p_df.iloc[line,:],
-                                                                        rendaHT_df.iloc[line,:], rendaHT_p_df.iloc[line,:],
-                                                                        ocp_df.columns):
-            x.append(date)
-            y.append(i)
-            yp.append(ip)
-            if MEDIA:
-                rEP.append(ep/i)
-                rEPp.append(ep_p/ip)
-                rET.append(et/i)
-                rETp.append(et_p/ip)
-                rHP.append(hp/i)
-                rHPp.append(hp_p/ip)
-                rHT.append(ht/i)
-                rHTp.append(ht_p/ip)
-            else:
-                rEP.append(np.median(ep))
-                rEPp.append(np.median(ep_p))
-                rET.append(np.median(et))
-                rETp.append(np.median(et_p))
-                rHP.append(np.median(hp))
-                rHPp.append(np.median(hp_p))
-                rHT.append(np.median(ht))
-                rHTp.append(np.median(ht_p))
-        figO.add_trace(go.Scatter(x=x, y=y, name=name, mode="lines+markers", line=dict(width=8)))#, line_color=f"rgba{hex_to_rgb(cores[line%16])}", fill="tozeroy", fillcolor=f"rgba{hex_to_rgb(cores[line%16])}"))
-        figOp.add_trace(go.Scatter(x=x, y=yp, name=name, mode="lines+markers", line=dict(width=8)))
-        figREP.add_trace(go.Scatter(x=x, y=rEP, name=name, mode="lines+markers", line=dict(width=8)))
-        figREPp.add_trace(go.Scatter(x=x, y=rEPp, name=name, mode="lines+markers", line=dict(width=8)))
-        figRET.add_trace(go.Scatter(x=x, y=rET, name=name, mode="lines+markers", line=dict(width=8)))
-        figRETp.add_trace(go.Scatter(x=x, y=rETp, name=name, mode="lines+markers", line=dict(width=8)))
-        figRHP.add_trace(go.Scatter(x=x, y=rHP, name=name, mode="lines+markers", line=dict(width=8)))
-        figRHPp.add_trace(go.Scatter(x=x, y=rHPp, name=name, mode="lines+markers", line=dict(width=8)))
-        figRHT.add_trace(go.Scatter(x=x, y=rHT, name=name, mode="lines+markers", line=dict(width=8)))
-        figRHTp.add_trace(go.Scatter(x=x, y=rHTp, name=name, mode="lines+markers", line=dict(width=8)))
+    print("Todos dataframes carregados;")
+    dfs = []
+    figs = []
+    for i in range(len(datas)):
+        dfs.append(pd.DataFrame(datas[i]))
+        figs.append(go.Figure())
         
-    figO.update_layout(
-        title_text="Ocupações ao longo do tempo",
-        title_x=0.5,
-        font_size=25,
-        xaxis=dict(type="date",
-                    tickformat="%m-%Y",
-                    dtick="M3",
-                    ## Add range slider
-                    # rangeselector=dict(
-                    #     buttons=list([
-                    #         dict(count=3,
-                    #             label="1t",
-                    #             step="month",
-                    #             stepmode="backward"),
-                    #         dict(count=6,
-                    #             label="1s",
-                    #             step="month",
-                    #             stepmode="backward"),
-                    #         dict(count=12,
-                    #             label="y",
-                    #             step="year",
-                    #             stepmode="todate"),
-                    #         dict(step="all")
-                    #     ])
-                    # ),
-                    # rangeslider=dict(
-                    #     visible=True
-                    # ),
-                    ##
-                ),
-        legend=dict(
-            orientation="h",
-            yanchor='bottom',
-            y=-0.2,
-            xanchor='left',
-            x=0,
-        ),
-    )
-    figOp.update_layout(
-        title_text="Ocupações ao longo do tempo - Com pesos",
-        title_x=0.5,
-        font_size=25,
-        xaxis=dict(type="date",
-                    tickformat="%m-%Y",
-                    dtick="M3",
-                ),
-        legend=dict(
-            orientation="h",
-            yanchor='bottom',
-            y=-0.2,
-            xanchor='left',
-            x=0,
-        ),
-    )
-    figREP.update_layout(
-        title_text=f"Renda efetiva principal ({"média" if MEDIA else "mediana"}) por ocupação ao longo do tempo",
-        title_x=0.5,
-        font_size=25,
-        xaxis=dict(type="date",
-                    tickformat="%m-%Y",
-                    dtick="M3",
-                ),
-        legend=dict(
-            orientation="h",
-            yanchor='bottom',
-            y=-0.2,
-            xanchor='left',
-            x=0,
-        ),
-    )
-    figREPp.update_layout(
-        title_text=f"Renda efetiva principal ({"média" if MEDIA else "mediana"}) por ocupação ao longo do tempo - Com pesos",
-        title_x=0.5,
-        font_size=25,
-        xaxis=dict(type="date",
-                    tickformat="%m-%Y",
-                    dtick="M3",
-                ),
-        legend=dict(
-            orientation="h",
-            yanchor='bottom',
-            y=-0.2,
-            xanchor='left',
-            x=0,
-        ),
-    )
-    figRET.update_layout(
-        title_text=f"Renda efetiva total ({"média" if MEDIA else "mediana"}) por ocupação ao longo do tempo",
-        title_x=0.5,
-        font_size=25,
-        xaxis=dict(type="date",
-                    tickformat="%m-%Y",
-                    dtick="M3",
-                ),
-        legend=dict(
-            orientation="h",
-            yanchor='bottom',
-            y=-0.2,
-            xanchor='left',
-            x=0,
-        ),
-    )
-    figRETp.update_layout(
-        title_text=f"Renda efetiva total ({"média" if MEDIA else "mediana"}) por ocupação ao longo do tempo - Com pesos",
-        title_x=0.5,
-        font_size=25,
-        xaxis=dict(type="date",
-                    tickformat="%m-%Y",
-                    dtick="M3",
-                ),
-        legend=dict(
-            orientation="h",
-            yanchor='bottom',
-            y=-0.2,
-            xanchor='left',
-            x=0,
-        ),
-    )
-    figRHP.update_layout(
-        title_text=f"Renda habitual principal ({"média" if MEDIA else "mediana"}) por ocupação ao longo do tempo",
-        title_x=0.5,
-        font_size=25,
-        xaxis=dict(type="date",
-                    tickformat="%m-%Y",
-                    dtick="M3",
-                ),
-        legend=dict(
-            orientation="h",
-            yanchor='bottom',
-            y=-0.2,
-            xanchor='left',
-            x=0,
-        ),
-    )
-    figRHPp.update_layout(
-        title_text=f"Renda habitual principal ({"média" if MEDIA else "mediana"}) por ocupação ao longo do tempo - Com pesos",
-        title_x=0.5,
-        font_size=25,
-        xaxis=dict(type="date",
-                    tickformat="%m-%Y",
-                    dtick="M3",
-                ),
-        legend=dict(
-            orientation="h",
-            yanchor='bottom',
-            y=-0.2,
-            xanchor='left',
-            x=0,
-        ),
-    )
-    figRHT.update_layout(
-        title_text=f"Renda habitual total ({"média" if MEDIA else "mediana"}) por ocupação ao longo do tempo",
-        title_x=0.5,
-        font_size=25,
-        xaxis=dict(type="date",
-                    tickformat="%m-%Y",
-                    dtick="M3",
-                ),
-        legend=dict(
-            orientation="h",
-            yanchor='bottom',
-            y=-0.2,
-            xanchor='left',
-            x=0,
-        ),
-    )
-    figRHTp.update_layout(
-        title_text=f"Renda habitual total ({"média" if MEDIA else "mediana"}) por ocupação ao longo do tempo - Com pesos",
-        title_x=0.5,
-        font_size=25,
-        xaxis=dict(type="date",
-                    tickformat="%m-%Y",
-                    dtick="M3",
-                ),
-        legend=dict(
-            orientation="h",
-            yanchor='bottom',
-            y=-0.2,
-            xanchor='left',
-            x=0,
-        ),
-    )
+    for line in range(len(dfs[0])):
+        nome = dfs[0].iloc[line,:].name
+        x = list(dfs[0].columns)
+        ys = []
+        for i in range(len(dfs)):
+            ys.append([])
+        for col in range(len(dfs[0].iloc[line])):
+            ys[0].append(dfs[0].iloc[line,col])
+            ys[1].append(dfs[1].iloc[line,col])
+            if MEDIA:
+                for i in [2,4,6,8]:
+                    ys[i].append(dfs[i].iloc[line,col]/ys[0][col])
+                    ys[i+1].append(dfs[i+1].iloc[line,col]/ys[1][col])
+            else:
+                for i in [2,4,6,8]:
+                    ys[i].append(np.median(dfs[i].iloc[line,col]))
+                    ys[i+1].append(np.median(dfs[i+1].iloc[line,col]))
+        for idx, fig in enumerate(figs):
+            fig.add_trace(go.Scatter(x=x, y=ys[idx], name=nome, mode="lines+markers", line=dict(width=8)))
+    titles = [
+        "Ocupações ao longo do tempo",
+        "Ocupações ao longo do tempo - Com pesos",
+        f"Renda habitual principal ({"média" if MEDIA else "mediana"}) por ocupação ao longo do tempo",
+        f"Renda habitual principal ({"média" if MEDIA else "mediana"}) por ocupação ao longo do tempo - Com pesos",
+        f"Renda efetiva principal ({"média" if MEDIA else "mediana"}) por ocupação ao longo do tempo",
+        f"Renda efetiva principal ({"média" if MEDIA else "mediana"}) por ocupação ao longo do tempo - Com pesos",
+        f"Renda habitual total ({"média" if MEDIA else "mediana"}) por ocupação ao longo do tempo",
+        f"Renda habitual total ({"média" if MEDIA else "mediana"}) por ocupação ao longo do tempo - Com pesos",
+        f"Renda efetiva total ({"média" if MEDIA else "mediana"}) por ocupação ao longo do tempo",
+        f"Renda efetiva total ({"média" if MEDIA else "mediana"}) por ocupação ao longo do tempo - Com pesos",
+    ]
 
-    figO.show()
-    figOp.show()
-    figREP.show()
-    figREPp.show()
-    figRET.show()
-    figRETp.show()
-    figRHP.show()
-    figRHPp.show()
-    figRHT.show()
-    figRHTp.show()
+    for idx, fig in enumerate(figs):
+        fig.update_layout(
+        title_text=titles[idx],
+        title_x=0.5,
+        font_size=25,
+        xaxis=dict(type="date",
+                    tickformat="%m-%Y",
+                    dtick="M3",
+                ),
+        legend=dict(
+            orientation="h",
+            yanchor='bottom',
+            y=-0.2,
+            xanchor='left',
+            x=0,
+            ),
+        )
+        fig.show()
