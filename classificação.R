@@ -15,31 +15,31 @@ estimar_ano_nascimento_inicial <- function(df, ano_inicio_painel) {
       # estima temporaria para usar na busca de doadores do ano de nascimento
       ano_nascimento_estimado_tmp = as.numeric(ano_inicio_painel) - V2009
     )
-
+  
   return(df)
 }
 
 # Imputa o ano de nascimento para registros ignorados usando doadores
 imputar_ano_nascimento_doador <- function(df_domicilio) {
-    doadoras <- df_domicilio %>% filter(!idade_ignorada)
-    recebedoras_indices <- which(df_domicilio$idade_ignorada)
+  doadoras <- df_domicilio %>% filter(!idade_ignorada)
+  recebedoras_indices <- which(df_domicilio$idade_ignorada)
+  
+  if (length(recebedoras_indices) == 0 || nrow(doadoras) == 0){
+    return(select(df_domicilio, -ano_nascimento_estimado_tmp)) #remove col temp
+  }
+  
+  for (i in recebedoras_indices) {
+    pessoa_alvo <- df_domicilio[i,]
     
-    if (lenght(recebedoras_indices) == 0 || nrow(doadoras) == 0){
-      return(select(df_domicilio, -ano_nascimento_estimado_tmp)) #remove col temp
-    }
+    # criterios para encontrar doadoras potenciais conforme metodologia do IPEA
+    doadoras_potenciais <- doadoras %>%
+      filter(
+        periodo != pessoa_alvo$periodo, # nao pode ser da mesma entrevista
+        V2007 == pessoa_alvo$V2007, # deve ser do mesmo sexo
+        # diferenca de ate 3 anos no ano estimado
+        abs(ano_nascimento - pessoa_alvo$ano_nascimento_estimado_tmp) <=3
+      )
     
-    for (i in recebedoras_indices) {
-      pessoa_alvo <- df_domicilio[i,]
-      
-      # criterios para encontrar doadoras potenciais conforme metodologia do IPEA
-      doadoras_potenciais <- doadoras %>%
-        filter(
-          periodo != pessoa_alvo$periodo, # nao pode ser da mesma entrevista
-          V2007 == pessoa_alvo$V2007, # deve ser do mesmo sexo
-          # diferenca de ate 3 anos no ano estimado
-          abs(ano_nascimento - pessoa_alvo$ano_nascimento_estimado_tmp) <=3
-        )
-      
     # verificar condicao no domicilio (grupos compativeis)
     if (nrow(doadoras_potenciais) > 0) {
       condicoes_compativeis <- list(
@@ -78,7 +78,7 @@ imputar_ano_nascimento_doador <- function(df_domicilio) {
         df_domicilio$ano_nascimento[i] <- melhor_doadora$ano_nascimento
       }
     }
-      
+    
   }
   # pessoa com data ignorada sem doadora permance NA
   return(select(df_domicilio, -ano_nascimento_estimado_tmp))
@@ -211,12 +211,19 @@ classificar_individuos <- function(df_grupo) {
   n_periodos <- length(periodos)
   
   if (n_periodos == 1) {
-    return(NULL) # dropar individuos com apenas uma entrevista
+    df_vazio <- df_grupo[0, ]
+    return(
+      df_vazio %>% 
+        mutate(
+          individuo_id = integer(), 
+          classe_individuo = integer()
+        ) # dropar individuos com apenas uma entrevista
+    )
   }
   
   # Agrupar pessoas por características similares
-  df_grupo$individuo_id <- NA
-  df_grupo$classe_individuo <- NA
+  df_grupo$individuo_id <- NA_real_
+  df_grupo$classe_individuo <- NA_real_
   individuo_id <- 1
   
   # Verificar se o grupo tem tamanho constante
@@ -306,7 +313,8 @@ classificar_painel_pnadc <- function(arquivo_rds) {
       length(unique(pessoas_long$domicilio_id)), "domicílios\n")
   
   # determinar o ano de inicio do painel a partir dos dados
-  ano_inicio_painel <- min(as.numeric(substr(pessoas_long$periodo, 1, 4)))
+  #ano_inicio_painel <- min(as.numeric(substr(pessoas_long$periodo, 1, 4)))
+  ano_inicio_painel <- min(as.numeric(substr(pessoas_long$periodo, nchar(pessoas_long$periodo) - 3, nchar(pessoas_long$periodo))), na.rm = TRUE)
   cat("Ano de início do painel detectado:", ano_inicio_painel, "\n")
   
   # estimar o ano de nascimento inicial para todos
@@ -348,7 +356,7 @@ classificar_painel_pnadc <- function(arquivo_rds) {
     group_by(domicilio_id, grupo_domestico_id) %>%
     group_modify(~classificar_individuos(.x)) %>%
     ungroup() %>%
-  
+    
     # Criar ID Global
     mutate(ID_UNICO = paste(domicilio_id, grupo_domestico_id, individuo_id, sep = '-'))
   
@@ -409,9 +417,9 @@ classificar_painel_pnadc <- function(arquivo_rds) {
 #                                             "_", periodos_analise$ano_fim, periodos_analise$tri_fim,
 #                                             ".rds"))
 resultado <- classificar_painel_pnadc(here(getwd(), "PNAD_data", "Pareamentos", paste0("pessoas_", 
-                                             periodos_analise$ano_inicio, periodos_analise$tri_inicio,
-                                             "_", periodos_analise$ano_fim, periodos_analise$tri_fim,
-                                             ".parquet")))
+                                                                                       periodos_analise$ano_inicio, periodos_analise$tri_inicio,
+                                                                                       "_", periodos_analise$ano_fim, periodos_analise$tri_fim,
+                                                                                       ".parquet")))
 
 str(resultado$dados_classificados)
 print(resultado$resumo_domicilios)

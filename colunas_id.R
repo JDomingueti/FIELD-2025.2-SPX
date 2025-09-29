@@ -39,11 +39,11 @@ t3 <- shift_quarter(ano_t, tri_t, 3)
 t4 <- shift_quarter(ano_t, tri_t, 4)
 
 
-pnadc_t0_survey <- read_pnadc(make_path(t0$year, t0$tri)[1], lpath, vars=vars_needed)
-pnadc_t1_survey <- read_pnadc(make_path(t1$year, t1$tri)[1], lpath, vars=vars_needed)
-pnadc_t2_survey <- read_pnadc(make_path(t2$year, t2$tri)[1], lpath, vars=vars_needed)
-pnadc_t3_survey <- read_pnadc(make_path(t3$year, t3$tri)[1], lpath, vars=vars_needed)
-pnadc_t4_survey <- read_pnadc(make_path(t4$year, t4$tri)[1], lpath, vars=vars_needed)
+pnadc_t0_survey <- read_pnadc(make_path(ano_t + t0$year, t0$tri)[1], lpath, vars=vars_needed)
+pnadc_t1_survey <- read_pnadc(make_path(ano_t + t1$year, t1$tri)[1], lpath, vars=vars_needed)
+pnadc_t2_survey <- read_pnadc(make_path(ano_t + t2$year, t2$tri)[1], lpath, vars=vars_needed)
+pnadc_t3_survey <- read_pnadc(make_path(ano_t + t3$year, t3$tri)[1], lpath, vars=vars_needed)
+pnadc_t4_survey <- read_pnadc(make_path(ano_t + t4$year, t4$tri)[1], lpath, vars=vars_needed)
 
 
 #pnadc_t_survey  <- get_pnadc(year=ano_t,  quarter=tri_t,  vars=vars_needed)
