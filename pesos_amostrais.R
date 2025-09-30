@@ -7,7 +7,7 @@ ano <- as.integer(readline("Ano a ser examinado: "))
 tri <- as.integer(readline("Tri a ser examinado: "))
 
 # --- 2. CARREGAMENTO E PREPARAÇÃO DOS DADOS ---
-arquivo_entrada <- paste0("pessoas_", ano, tri, "_", ano + 1, tri, "_classificado.rds")
+arquivo_entrada <- paste0("pessoas_", ano, tri, "_", ano + 1, tri, "_classificado.parquet")
 
 # verificar existencia do arquivo
 if (!file.exists(arquivo_entrada)) {
