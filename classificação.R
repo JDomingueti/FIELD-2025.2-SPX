@@ -325,6 +325,19 @@ classificar_painel_pnadc <- function(arquivo_pqt) {
   cat("Dados carregados:", nrow(pessoas_long), "registros de", 
       length(unique(pessoas_long$domicilio_id)), "domicílios\n")
   
+  # filtrar apenas domicilios presentes em todos os 5 trimestres (esperado ~20%)
+  domicilios_completos <- pessoas_long %>%
+    count(domicilio_id, periodo) %>%
+    count(domicilio_id, name = "n_periodos") %>%
+    filter(n_periodos == 5) %>%
+    pull(domicilio_id)
+  
+  pessoas_long <- pessoas_long %>%
+    filter(domicilio_id %in% domicilios_completos)
+  
+  cat("Mantidos", length(unique(pessoas_long$domicilio_id)), 
+      "domicílios completos em 5 entrevistas\n")
+  
   # determinar o ano de inicio do painel a partir dos dados
   #ano_inicio_painel <- min(as.numeric(substr(pessoas_long$periodo, 1, 4)))
   ano_inicio_painel <- min(as.numeric(substr(pessoas_long$periodo, nchar(pessoas_long$periodo) - 3, nchar(pessoas_long$periodo))), na.rm = TRUE)
