@@ -72,9 +72,11 @@ def carregar_dfs(y_start, t_start, y_end, t_end, classified):
                                                 "VD4020",  # Renda efetiva total
                                                 "Ano",
                                                 "Trimestre",
-                                                "classe_individuo"
+                                                "classe_individuo",
+                                                "ID_UNICO"
                                                 ]).dropna(ignore_index=True)
         parquet_group = parquet_group[parquet_group["classe_individuo"].astype(int) <= 3]
+        parquet_group = parquet_group.groupby("ID_UNICO").filter(lambda x: len(x) == 5).drop(columns=["classe_individuo", "ID_UNICO"])
         y_end = y_start + 1
     for year in range(y_start, y_end + 1):
         for i in range(4):
@@ -82,7 +84,7 @@ def carregar_dfs(y_start, t_start, y_end, t_end, classified):
             lbl = str(year) + "-" + str(trim*3-1)
             path = Path(f"PNAD_data/{year}/PNADC_0{trim}{year}.parquet")
             if classified:
-                parquet = parquet_group[(parquet_group["Ano"] == str(year)) & (parquet_group["Trimestre"] == str(trim))].drop(columns=["Ano", "Trimestre", "classe_individuo"]).reset_index(drop=True)
+                parquet = parquet_group[(parquet_group["Ano"] == str(year)) & (parquet_group["Trimestre"] == str(trim))].drop(columns=["Ano", "Trimestre"]).reset_index(drop=True)
             else:
                 parquet = pd.read_parquet(path,
                                           columns=["UF",
