@@ -3,43 +3,30 @@ import numpy as np
 import plotly.graph_objects as go
 from pathlib import Path
 
-MEDIA = False # Mude para false para calcular a mediana ao invés da média
-
-# filtro = {
-#     -1: "Não aplicável",
-#     1: "Diretores e Gerentes",
-#     2: "Profissionais das ciências e intelectuais",
-#     3: "Técnicos e profissionais de nivel médio",
-#     4: "Trabalhadores de apoio administrativo",
-#     5: "Trabalhadores dos serviços, vendedores dos comércios e mercados",
-#     6: "Trabalhadores qualificados da agropecuária, florestais, da caça e da pesca",
-#     7: "Trabalhadores qualificados, operários e artesãos da construção, das artes mecânicas e outros ofícios",
-#     8: "Operadores de instalações e máquinas e montadores",
-#     9: "Ocupações elementares",
-#     0: "Membros das forças armadas, policiais e bombeiros militares"
-# } # Se for mudar o filtro mude também as linhas 112-115 pela 111
+MEDIA = True # Mude para false para calcular a mediana ao invés da média
+CLASSIFICADO = True # False
 
 filtro = {
-    9621: "Mensageiros, carregadores de bagagens e entregadores de encomendas",
-    8321: "Condutores de motocicletas",
-    8322: "Condutores de automóveis, taxis e caminhonetes",
-    4412: "Trabalhadores de serviços de correios",
-    4323: "Trabalhadores de serviços de transporte"
-    }
+    -1: "Não aplicável",
+    1: "Diretores e Gerentes",
+    2: "Profissionais das ciências e intelectuais",
+    3: "Técnicos e profissionais de nivel médio",
+    4: "Trabalhadores de apoio administrativo",
+    5: "Trabalhadores dos serviços, vendedores dos comércios e mercados",
+    6: "Trabalhadores qualificados da agropecuária, florestais, da caça e da pesca",
+    7: "Trabalhadores qualificados, operários e artesãos da construção, das artes mecânicas e outros ofícios",
+    8: "Operadores de instalações e máquinas e montadores",
+    9: "Ocupações elementares",
+    0: "Membros das forças armadas, policiais e bombeiros militares"
+} 
 
-def make_data_paths(year, trimester): ## Roubei a função rapidão, é bom q tirar daqui dps
-    """
-    Dado o ano e trimestre desejados, retorna os paths para o arquivo referente e 
-    para o local do Parquet a ser gerado.
-    
-    Parêmatros:
-        year (int): ano para o arquivo em questão, no formato XXXX (ex.: 2021)
-        trimester (int): trimestre para o arquivo em questão, no formato X (ex.: 1)
-    """
-    raw_path = f"PNAD_data/{year}/PNADC_0{trimester}{year}.txt" # path do arquivo direto do PNAD
-    parquet_path = f"PNAD_data/{year}/PNADC_0{trimester}{year}.parquet" # path para o arquivo resultante
-    
-    return Path(raw_path), Path(parquet_path)
+# filtro = {
+#     9621: "Mensageiros, carregadores de bagagens e entregadores de encomendas",
+#     8321: "Condutores de motocicletas",
+#     8322: "Condutores de automóveis, taxis e caminhonetes",
+#     4412: "Trabalhadores de serviços de correios",
+#     4323: "Trabalhadores de serviços de transporte"
+#     }
 
 def apply_deflator(df: pd.DataFrame, deflator_path, year, trim):
     t = f"{(3*trim-2):02}-{(3*trim-1):02}-{(3*trim):02}"
@@ -53,11 +40,7 @@ def apply_deflator(df: pd.DataFrame, deflator_path, year, trim):
     df["VD4019"] = df["VD4019"] * df_temporario["Habitual"]
     df["VD4020"] = df["VD4020"] * df_temporario["Efetivo"]
 
-if __name__ == "__main__":
-    y_start = int(input("Ano início: "))
-    t_start = int(input("Trimestre início: "))
-    y_end = int(input("Ano término: "))
-    t_end = int(input("Trimestre término: "))
+def carregar_dfs(y_start, t_start, y_end, t_end, classified):
     # deflator_path = Path("PNAD_data/deflator_PNADC_2025_trimestral_040506.xls")
     deflator_path = Path("PNAD_data/deflator_PNADC_2025_trimestral_040506.xlsx") # O warning pode ser ignorado, mas para parar tem que converter o arquivo
                                                                                  # pro formato xlsx e tirar cabeçalhos/rodapés
@@ -76,21 +59,42 @@ if __name__ == "__main__":
         ]
     lista = list(filtro.keys())
     len_key = 1000 if lista[0] < 1000 else 100 if lista[0] < 100 else 10 if lista[0] < 10 else 1
+    if classified:
+        # path = Path(f"PNAD_data/Pareamentos/pessoas_{y_start}{t_start}_{y_start+1}{t_start}.parquet")
+        path = Path(f"PNAD_data/Pareamentos/pessoas_{y_start}{t_start}_{y_start+1}{t_start}_classificado.parquet")
+        parquet_group = pd.read_parquet(path,
+                                        columns=["UF",
+                                                "V1028",   # Peso com calibração
+                                                "V4010",   # Código de ocupação
+                                                "VD4016",  # Renda habitual principal
+                                                "VD4017",  # Renda efetiva principal
+                                                "VD4019",  # Renda habitual total
+                                                "VD4020",  # Renda efetiva total
+                                                "Ano",
+                                                "Trimestre",
+                                                "classe_individuo"
+                                                ]).dropna(ignore_index=True)
+        parquet_group = parquet_group[parquet_group["classe_individuo"].astype(int) <= 3]
+        y_end = y_start + 1
     for year in range(y_start, y_end + 1):
         for i in range(4):
             trim = (t_start - 1 + i)%4 + 1
-            lbl = str(year) + "-" + str(trim)
-            print(lbl)
-            parquet = pd.read_parquet(f"PNAD_data/{year}/PNADC_0{trim}{year}.parquet",
-                                      columns=["UF",
-                                               "V1028",   # Peso com calibração
-                                               "V4010",   # Código de ocupação
-                                               "VD4016",  # Renda habitual principal
-                                               "VD4017",  # Renda efetiva principal
-                                               "VD4019",  # Renda habitual total
-                                               "VD4020",  # Renda efetiva total
-                                               ]).dropna(ignore_index=True)
+            lbl = str(year) + "-" + str(trim*3-1)
+            path = Path(f"PNAD_data/{year}/PNADC_0{trim}{year}.parquet")
+            if classified:
+                parquet = parquet_group[(parquet_group["Ano"] == str(year)) & (parquet_group["Trimestre"] == str(trim))].drop(columns=["Ano", "Trimestre", "classe_individuo"]).reset_index(drop=True)
+            else:
+                parquet = pd.read_parquet(path,
+                                          columns=["UF",
+                                                   "V1028",   # Peso com calibração
+                                                   "V4010",   # Código de ocupação
+                                                   "VD4016",  # Renda habitual principal
+                                                   "VD4017",  # Renda efetiva principal
+                                                   "VD4019",  # Renda habitual total
+                                                   "VD4020",  # Renda efetiva total
+                                                   ]).dropna(ignore_index=True)
             apply_deflator(parquet, deflator_path, year, trim)
+            print(" -> Lido: ", lbl, ";")
             values = [
                 {},     # Ocupação
                 {},     # Ocupação - peso
@@ -134,8 +138,20 @@ if __name__ == "__main__":
                     keys.append(obj)
             for i in range(len(values)):
                 datas[i][lbl] = values[i]
-            if (trim == t_end) and (year == y_end): break
+            if (trim == t_start) and (year == y_end): break
             keys = []
+    return datas
+
+if __name__ == "__main__":
+    y_start = int(input("Ano início: "))
+    t_start = int(input("Trimestre início: "))
+    if not CLASSIFICADO:
+        y_end = int(input("Ano término: "))
+        t_end = int(input("Trimestre término: "))
+    else:
+        y_end = y_start
+        t_end = 1
+    datas = carregar_dfs(y_start, t_start, y_end, t_end, CLASSIFICADO)
     print("Todos dataframes carregados;")
     dfs = []
     figs = []
