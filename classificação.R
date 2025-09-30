@@ -3,26 +3,38 @@ library(tidyr)
 library(here)
 library(arrow)
 source("colunas_id.R")
+# ================== AJUSTE DE IDADE ==================
+ajustar_idade_estimativa <- function(idade) {
+  if (is.na(idade)) return(NA_integer_)
+  # se idade termina em 5 ou 0 permitir +-1 ano de toleracia
+  if (idade %% 5 == 0) return(idade + sample(c(-1, 0, 1), 1))
+  return(idade)
+}
 
+# ================== ESTIMAR ANO DE NASCIMENTO ==================
 # Estima o ano de nascimento inicial com base na idade e ano do painel
 estimar_ano_nascimento_inicial <- function(df, ano_inicio_painel) {
   # Assumindo que V2009 é a idade e que valores como 999 indicam idade ignorada
   df <- df %>%
     mutate(
       idade_ignorada = V2009 >= 999 | is.na(V2009),
-      # para idades ignorada será NA para ser tratado na imputacao
-      ano_nascimento = if_else(idade_ignorada, NA_real_, as.numeric(ano_inicio_painel) - V2009),
-      # estima temporaria para usar na busca de doadores do ano de nascimento
-      ano_nascimento_estimado_tmp = as.numeric(ano_inicio_painel) - V2009
+      idade_corrigida = if_else(!idade_ignorada, ajustar_idade_estimativa(V2009), NA_real_),
+      ano_nascimento = case_when(
+        !is.na(V20082) & V20082 > 0 ~ as.numeric(V20082),       # usa direto o ano se disponivel
+        !idade_ignorada ~ ano_inicio_painel - idade_corrigida,  # estima pelo ano + idade corrigida
+        TRUE ~ NA_real_
+      ),
+      ano_nascimento_estimado_tmp = if_else(!idade_ignorada, ano_inicio_painel - idade_corrigida, NA_real_)
     )
   
   return(df)
 }
 
+# ================== IMPUTAÇÃO DE NASCIMENTO COM DOADORES ==================
 # Imputa o ano de nascimento para registros ignorados usando doadores
 imputar_ano_nascimento_doador <- function(df_domicilio) {
-  doadoras <- df_domicilio %>% filter(!idade_ignorada)
-  recebedoras_indices <- which(df_domicilio$idade_ignorada)
+  doadoras <- df_domicilio %>% filter(!is.na(ano_nascimento))
+  recebedoras_indices <- which(is.na(df_domicilio$ano_nascimento))
   
   if (length(recebedoras_indices) == 0 || nrow(doadoras) == 0){
     return(select(df_domicilio, -ano_nascimento_estimado_tmp)) #remove col temp
@@ -113,7 +125,8 @@ mesma_pessoa <- function(p1, p2, tolerancia_ano = 3) {
   condicoes_compativeis <- list(
     c(1, 2, 3),  # responsável, cônjuge, união estável
     c(4, 5, 6),  # filho, enteado
-    c(8, 9)      # pai/mãe, sogro/sogra
+    c(8, 9),      # pai/mãe, sogro/sogra
+    c(7, 10:19) #conviventes e outros parentes
   )
   
   for (grupo in condicoes_compativeis) {
@@ -287,15 +300,15 @@ classificar_individuos <- function(df_grupo) {
 
 # ================== FUNÇÃO PRINCIPAL ==================
 
-classificar_painel_pnadc <- function(arquivo_rds) {
+classificar_painel_pnadc <- function(arquivo_pqt) {
   # Carregar dados
-  cat("Carregando dados do arquivo:", arquivo_rds, "\n")
-  if (!file.exists(arquivo_rds)) {
-    stop("Arquivo não encontrado: ", arquivo_rds)
+  cat("Carregando dados do arquivo:", arquivo_pqt, "\n")
+  if (!file.exists(arquivo_pqt)) {
+    stop("Arquivo não encontrado: ", arquivo_pqt)
   }
   
   #pessoas_long <- readRDS(arquivo_rds)
-  pessoas_long <- read_parquet(arquivo_rds)
+  pessoas_long <- read_parquet(arquivo_pqt)
   
   # Verificar estrutura dos dados
   colunas_necessarias <- c("domicilio_id", "V2003", "V2007", "V2009", "V2005", "periodo")
@@ -392,14 +405,14 @@ classificar_painel_pnadc <- function(arquivo_rds) {
   # Salvar resultados
   
   #arquivo_saida <- gsub("\\.rds$", "_classificado.rds", arquivo_rds)
-  arquivo_saida <- gsub("\\.parquet$", "_classificado.parquet", arquivo_rds)
+  arquivo_saida <- gsub("\\.parquet$", "_classificado.parquet", arquivo_pqt)
   #saveRDS(resultado_final, arquivo_saida)
   write_parquet(resultado_final, arquivo_saida)
   cat("\nResultados salvos em:", arquivo_saida, "\n")
   
   # Salvar também resumo de grupos domésticos
   #arquivo_grupos <- gsub("\\.rds$", "_grupos_domesticos.rds", arquivo_rds)
-  arquivo_grupos <- gsub("\\.parquet$", "_grupos_domesticos.parquet", arquivo_rds)
+  arquivo_grupos <- gsub("\\.parquet$", "_grupos_domesticos.parquet", arquivo_pqt)
   #saveRDS(grupos_domesticos, arquivo_grupos)
   write_parquet(grupos_domesticos, arquivo_grupos)
   cat("Classificação de grupos domésticos salva em:", arquivo_grupos, "\n")
