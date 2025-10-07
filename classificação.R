@@ -5,10 +5,14 @@ library(arrow)
 source("colunas_id.R")
 # ================== AJUSTE DE IDADE ==================
 ajustar_idade_estimativa <- function(idade) {
-  if (is.na(idade)) return(NA_integer_)
-  # se idade termina em 5 ou 0 permitir +-1 ano de toleracia
-  if (idade %% 5 == 0) return(idade + sample(c(-1, 0, 1), 1))
-  return(idade)
+  if_else(is.na(idade),
+          NA_integer_,
+          # se idade termina em 5 ou 0 permitir +-1 ano de toleracia
+          if_else(idade %% 5 == 0,
+            idade + sample(c(-1, 0, 1), 1),
+            idade
+           )
+        )
 }
 
 # ================== ESTIMAR ANO DE NASCIMENTO ==================
