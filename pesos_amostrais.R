@@ -2,12 +2,13 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(arrow)
+library(here)
 
 ano <- as.integer(readline("Ano a ser examinado: "))
 tri <- as.integer(readline("Tri a ser examinado: "))
 
 # --- 2. CARREGAMENTO E PREPARAÇÃO DOS DADOS ---
-arquivo_entrada <- paste0("pessoas_", ano, tri, "_", ano + 1, tri, "_classificado.parquet")
+arquivo_entrada <- here("PNAD_data", "Pareamentos", paste0("pessoas_", ano, tri, "_", ano + 1, tri, "_classificado.parquet"))
 
 # verificar existencia do arquivo
 if (!file.exists(arquivo_entrada)) {
@@ -53,7 +54,7 @@ dados_plot <- dados_completos %>%
   filter(ID_UNICO %in% dados_plot)
 
 # Gráfico de linhas
-grafico_evolucao <- ggplot(dados_plot, aes(x = periodo, y = V1028, group = ID_UNICO, color = ID_UNICO)) +
+grafico_evolucao <- ggplot(dados_plot, aes(x = paste0(Ano, "_T", Trimestre, sep=""), y = V1028, group = ID_UNICO, color = ID_UNICO)) +
   geom_line(alpha = 0.6) +
   geom_point(size = 2) +
   labs(
