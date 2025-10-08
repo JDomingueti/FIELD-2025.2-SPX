@@ -1,4 +1,6 @@
 library(here)
+library(dplyr)
+library(arrow)
 
 # funcao para obter periodos de entrevista de acordo com o usuario
 obter_periodos <- function() {
@@ -38,7 +40,7 @@ catch_median_renda <- function(y, t) {
   
   # ler os 5 parquets correspondentes
   dfs <- lapply(quarters, function(q) {
-    path <- here("PNAD_data", q$year, paste0("PNADC_0", q$tri, q$year, ".parquet"))
+    path <- here("PNAD_data", "Pareamentos", paste0("pessoas_", q$year, q$tri, "_", q$year + 1, q$tri, "_classificado.parquet"))
     if (file.exists(path)) {
       read_parquet(path) %>%
       #filtrar apenas para o ano (y) e trimestre (t)
@@ -62,6 +64,5 @@ catch_median_renda <- function(y, t) {
   
   # calcular a mediana
   mediana_renda <- median(dados_sel$VD4020, na.rm = TRUE)
-  
   return(mediana_renda)
 }
