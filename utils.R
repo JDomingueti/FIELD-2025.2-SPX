@@ -72,37 +72,52 @@ classificar_trabalhador_app <- function(df) {
   df <- df %>%
     mutate(
       #trabalhadores em plataformas digitais de transporte de passageiros
-     # plataforma_transporte = if_else(
-      #  V4013 == 49030 & V4010 %in% c(8321, 8322),
-       # 1, 0
-    #  ),
+      plataforma_transporte = if_else(
+        V4013 == 49030 & V4010 %in% c(8321, 8322),
+        1, 0
+      ),
       
       # trabalhadores em plataformas digitais de entrega
-     # plataforma_entrega = if_else(
-      #  V4013 %in% c(49040, 53002) & V4010 %in% c(8321, 8322),
-      #  1, 0
-      #)
-      
-      #trabalhadores em plataformas digitais de transporte de passageiros
-       plataforma_transporte = if_else(
-       V4010 %in% c(8321, 8322),
-       1, 0
-       ),
-      
-       #trabalhadores em plataformas digitais de entrega
-       plataforma_entrega = if_else(
-       V4010 %in% c(8321, 8322),
-       1, 0
+      plataforma_entrega = if_else(
+        V4013 %in% c(49040, 53002) & V4010 %in% c(8321, 8322),
+        1, 0
       )
     )
   
   return(df)
 }
 
-
-
-
-
-
-
-
+calcular_mediana_por_setor <- function(y, t) {
+  quarters <- lapply(0:4, function(i) shift_quarter(y, t, -i))
+  
+  dfs <- lapply(quarters, function(q) {
+    path <- here("PNAD_data", "Pareamentos", paste0("pessoas_", q$year, q$tri, "_", q$year + 1, q$tri, "_classificado.parquet"))
+    if (file.exists(path)) {
+      read_parquet(path) %>%
+        # Filtrar para o ano (y) e trimestre (t) de referência
+        filter(Ano == y, Trimestre == t, !is.na(VD4020), VD4020 > 0)
+    } else {
+      warning(paste("Arquivo nao encontrado:", path))
+      NULL
+    }
+  })
+  
+  dfs <- Filter(Negate(is.null), dfs)
+  
+  if (length(dfs) == 0) {
+    stop("Nenhum arquivo de dados encontrado para o periodo especificado.")
+  }
+  dados <- bind_rows(dfs)
+  
+  # Calcular a mediana da renda POR SETOR (V4013)
+  mediana_por_setor <- dados %>%
+    filter(!is.na(V4013)) %>% 
+    group_by(Setor_CNAE = V4013) %>%
+    summarise(
+      Mediana_Renda = median(VD4020, na.rm = TRUE),
+      N_Trabalhadores = n() # numero de trabalhadores
+    ) %>%
+    ungroup()
+  
+  return(mediana_por_setor)
+}
