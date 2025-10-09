@@ -6,8 +6,16 @@ library(here)
 
 ano <- as.integer(readline("Ano a ser examinado: "))
 tri <- as.integer(readline("Tri a ser examinado: "))
+num_entrevistas <- as.integer(readline("Número total de entrevistas no pareamento: "))
 
 # --- 2. CARREGAMENTO E PREPARAÇÃO DOS DADOS ---
+ano_final <- ano + floor((num_entrevistas - 1) / 4)
+tri_final <- tri + ((num_entrevistas - 1) %% 4)
+if (tri_final > 4) {
+  tri_final <- tri_final - 4
+  ano_final <- ano_final + 1
+}
+
 arquivo_entrada <- here("PNAD_data", "Pareamentos", paste0("pessoas_", ano, tri, "_", ano + 1, tri, "_classificado.parquet"))
 
 # verificar existencia do arquivo
@@ -37,7 +45,7 @@ dados_classe1 <- dados_classe1 %>% arrange(ID_UNICO, periodo)
 # Selecionar apenas os indivíduos que têm as 5 entrevistas
 dados_completos <- dados_classe1 %>%
   group_by(ID_UNICO) %>%
-  filter(n() == 5) %>%
+  filter(n() == num_entrevistas) %>%
   ungroup()
 
 cat("Indivíduos com todas as 5 entrevistas:", n_distinct(dados_completos$ID_UNICO), "\n")
@@ -99,7 +107,7 @@ grafico_heatmap <- ggplot(contagem_heatmap,
   geom_tile(color = "white", linewidth = 0.5) + # Adiciona bordas brancas para separar as células
   scale_fill_viridis_c(name = "Contagem de Indivíduos", option = "magma", direction = -1) + # Escala de cor para a frequência
   labs(
-    title = paste0("Distribuição de Frequência do Peso Amostral (V1028) - ", ano, "T", tri),
+    title = paste0("Distribuição de Frequência do Peso Amostral (V1028) - ", ano, "T", tri, "a", ano_final, "T", tri_final),
     subtitle = "Indivíduos de Classe 1 com 5 Entrevistas (Decis de V1028)",
     x = "Período da Entrevista",
     y = "Faixa de Peso Amostral (V1028)"
