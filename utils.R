@@ -121,3 +121,32 @@ calcular_mediana_por_setor <- function(y, t) {
   
   return(mediana_por_setor)
 }
+
+# uso: passe o df gerado no retorno da funcao calcular_mediana_por_stor, passe
+# o df1 como o df inicial de interesse e o df2 como o df final de interesse
+maior_crescimento_setor <- function(df1, df2) {
+  df1 <- df1 %>%
+    rename(Mediana_Inicio = Mediana_Renda, N_Inicio = N_Trabalhadores)
+  df2 <- df2 %>%
+    rename(Mediana_Fim = Mediana_Renda, N_Fim = N_Trabalhadores)
+  
+  # juntar os dois dataframes e calcular o crescimento
+  analise_crescimento <- left_join(mediana_inicio, mediana_fim, by = "Setor_CNAE") %>%
+    # remover setores que nao aparecem no período final
+    filter(!is.na(Mediana_Fim)) %>%
+    # calcular a variacao percentual
+    mutate(
+      Crescimento_Percentual = ((Mediana_Fim - Mediana_Inicio) / Mediana_Inicio) * 100
+    ) %>%
+    # ordenar pelo maior crescimento
+    arrange(desc(Crescimento_Percentual))
+  
+  # o setor com o maior crescimento é o primeiro da lista
+  top_setor <- analise_crescimento %>% top_n(1, Crescimento_Percentual)
+  
+  cat(paste0(
+    "\nO setor com o código CNAE '", top_setor$Setor_CNAE,
+    "' teve o maior crescimento de renda mediana, com ",
+    round(top_setor$Crescimento_Percentual, 2), "%.\n"
+  ))
+}
