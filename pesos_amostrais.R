@@ -56,38 +56,56 @@ dados_plot <- dados_completos %>%
 
 cat("Gerando heatmap dos pesos amostrais...\n")
 
-# Preparar dados no formato wide (linhas = indivíduos, colunas = períodos)
+dados_classe1 <- dados_classe1 %>% arrange(ID_UNICO, periodo)
+
+# Selecionar apenas os indivíduos que têm as 5 entrevistas
+dados_completos <- dados_classe1 %>%
+  group_by(ID_UNICO) %>%
+  filter(n() == 5) %>%
+  ungroup()
+
+cat("Indivíduos com todas as 5 entrevistas:", n_distinct(dados_completos$ID_UNICO), "\n")
+
+# --- Preparação dos dados para o Heatmap ---
+
+# 1. Definir faixas (bins) para o Peso Amostral (V1028)
+# O número de bins pode ser ajustado. Aqui, usamos 10 faixas iguais.
 dados_heatmap <- dados_completos %>%
-  filter(ID_UNICO %in% dados_plot) %>%
-  mutate(Periodo = paste0(Ano, "_T", Trimestre)) %>%
-  select(ID_UNICO, Periodo, V1028) %>%
-  pivot_wider(names_from = Periodo, values_from = V1028)
+  mutate(
+    faixa_peso = cut(V1028, 
+                    breaks = unique(quantile(V1028, probs = seq(0, 1, length.out = 11), na.rm = TRUE)), # Decis de V1028
+                    include.lowest = TRUE, 
+                    dig.lab = 5,
+                    labels = NULL)
+  )
 
-# Converter para formato longo novamente (para ggplot)
-dados_heatmap_long <- dados_heatmap %>%
-  pivot_longer(-ID_UNICO, names_to = "Periodo", values_to = "V1028")
+# 2. Contar a frequência de indivíduos por Faixa de Peso e Período
+contagem_heatmap <- dados_heatmap %>%
+  group_by(periodo) %>% # 'periodo' já é sequencial (e.g., 1 a 5)
+  count(faixa_peso, name = "Frequencia") %>%
+  ungroup() %>%
+  mutate(
+    periodo_label = paste0("Entrevista ", periodo),
+    faixa_peso = as.factor(faixa_peso) # Garante que as faixas sejam tratadas como categorias
+  )
 
-# Garantir ordem cronológica dos períodos
-dados_heatmap_long$Periodo <- factor(
-  dados_heatmap_long$Periodo,
-  levels = sort(unique(dados_heatmap_long$Periodo))
-)
-
-# Criar heatmap
-grafico_heatmap <- ggplot(dados_heatmap_long, aes(x = Periodo, y = factor(ID_UNICO), fill = V1028)) +
-  geom_tile(color = "white") +
-  scale_fill_viridis_c(option = "plasma", name = "Peso Amostral (V1028)") +
+# 3. Gráfico Heatmap
+grafico_heatmap <- ggplot(contagem_heatmap, 
+                        aes(x = periodo_label, 
+                            y = faixa_peso, 
+                            fill = Frequencia)) +
+  geom_tile(color = "white") + # Adiciona bordas brancas para separar as células
+  scale_fill_viridis_c(name = "Contagem de Indivíduos", direction = -1) + # Escala de cor para a frequência
   labs(
-    title = paste0("Variação dos Pesos Amostrais nas 5 Entrevistas - ", ano, "T", tri),
-    subtitle = "Indivíduos de Classe 1 (Amostra de até 50 pessoas com todas as 5 entrevistas)",
+    title = paste0("Distribuição de Frequência do Peso Amostral (V1028) - ", ano, "T", tri),
+    subtitle = "Indivíduos de Classe 1 com 5 Entrevistas (Decis de V1028)",
     x = "Período da Entrevista",
-    y = "Indivíduo"
+    y = "Faixa de Peso Amostral (V1028)"
   ) +
   theme_minimal() +
   theme(
-    axis.text.y = element_blank(),
-    axis.ticks.y = element_blank(),
-    plot.title = element_text(face = "bold")
+    plot.title = element_text(face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1)
   )
 
 print(grafico_heatmap)
