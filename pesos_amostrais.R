@@ -52,21 +52,42 @@ dados_plot <- dados_completos %>%
 
 dados_plot <- dados_completos %>%
   filter(ID_UNICO %in% dados_plot)
+# GRAFICO HEATMAP
 
-# Gráfico de linhas
-grafico_evolucao <- ggplot(dados_plot, aes(x = paste0(Ano, "_T", Trimestre, sep=""), y = V1028, group = ID_UNICO, color = ID_UNICO)) +
-  geom_line(alpha = 0.6) +
-  geom_point(size = 2) +
+cat("Gerando heatmap dos pesos amostrais...\n")
+
+# Preparar dados no formato wide (linhas = indivíduos, colunas = períodos)
+dados_heatmap <- dados_completos %>%
+  filter(ID_UNICO %in% dados_plot) %>%
+  mutate(Periodo = paste0(Ano, "_T", Trimestre)) %>%
+  select(ID_UNICO, Periodo, V1028) %>%
+  pivot_wider(names_from = Periodo, values_from = V1028)
+
+# Converter para formato longo novamente (para ggplot)
+dados_heatmap_long <- dados_heatmap %>%
+  pivot_longer(-ID_UNICO, names_to = "Periodo", values_to = "V1028")
+
+# Garantir ordem cronológica dos períodos
+dados_heatmap_long$Periodo <- factor(
+  dados_heatmap_long$Periodo,
+  levels = sort(unique(dados_heatmap_long$Periodo))
+)
+
+# Criar heatmap
+grafico_heatmap <- ggplot(dados_heatmap_long, aes(x = Periodo, y = factor(ID_UNICO), fill = V1028)) +
+  geom_tile(color = "white") +
+  scale_fill_viridis_c(option = "plasma", name = "Peso Amostral (V1028)") +
   labs(
-    title = paste0("Evolução do Peso Amostral nas 5 Entrevistas - ", ano, "T", tri),
+    title = paste0("Variação dos Pesos Amostrais nas 5 Entrevistas - ", ano, "T", tri),
     subtitle = "Indivíduos de Classe 1 (Amostra de até 50 pessoas com todas as 5 entrevistas)",
     x = "Período da Entrevista",
-    y = "Peso Amostral (V1028)"
+    y = "Indivíduo"
   ) +
   theme_minimal() +
   theme(
-    plot.title = element_text(face = "bold"),
-    legend.position = "none"
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    plot.title = element_text(face = "bold")
   )
 
-print(grafico_evolucao)
+print(grafico_heatmap)
