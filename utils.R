@@ -141,9 +141,9 @@ calcular_mediana_por_setor <- function(y, t) {
 # o df1 como o df inicial de interesse e o df2 como o df final de interesse
 maior_crescimento_setor <- function(df1, df2) {
   df1 <- df1 %>%
-    rename(Mediana_Inicio = Mediana_Renda, N_Inicio = N_Trabalhadores)
+    rename(Mediana_Renda = Mediana_Inicio, N_Trabalhadores = N_Inicio)
   df2 <- df2 %>%
-    rename(Mediana_Fim = Mediana_Renda, N_Fim = N_Trabalhadores)
+    rename(Mediana_Renda = Mediana_Fim, N_Trabalhadores = N_Fim)
   
   # juntar os dois dataframes e calcular o crescimento
   analise_crescimento <- left_join(mediana_inicio, mediana_fim, by = "Setor_CNAE") %>%
