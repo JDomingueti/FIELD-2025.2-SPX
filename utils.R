@@ -66,3 +66,43 @@ catch_median_renda <- function(y, t) {
   mediana_renda <- median(dados_sel$VD4020, na.rm = TRUE)
   return(mediana_renda)
 }
+
+# ====== FUNCAO PARA IDENTIFICAR SE UM TRABALHADOR É DE APP DE MOTORISTA OU DE ENTREGA ========
+classificar_trabalhador_app <- function(df) {
+  df <- df %>%
+    mutate(
+      #trabalhadores em plataformas digitais de transporte de passageiros
+     # plataforma_transporte = if_else(
+      #  V4013 == 49030 & V4010 %in% c(8321, 8322),
+       # 1, 0
+    #  ),
+      
+      # trabalhadores em plataformas digitais de entrega
+     # plataforma_entrega = if_else(
+      #  V4013 %in% c(49040, 53002) & V4010 %in% c(8321, 8322),
+      #  1, 0
+      #)
+      
+      #trabalhadores em plataformas digitais de transporte de passageiros
+       plataforma_transporte = if_else(
+       V4010 %in% c(8321, 8322),
+       1, 0
+       ),
+      
+       #trabalhadores em plataformas digitais de entrega
+       plataforma_entrega = if_else(
+       V4010 %in% c(8321, 8322),
+       1, 0
+      )
+    )
+  
+  return(df)
+}
+
+
+
+
+
+
+
+
