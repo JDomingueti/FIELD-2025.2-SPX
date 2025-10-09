@@ -446,11 +446,15 @@ classificar_painel_pnadc <- function(arquivo_pqt) {
 #                                             periodos_analise$ano_inicio, periodos_analise$tri_inicio,
 #                                             "_", periodos_analise$ano_fim, periodos_analise$tri_fim,
 #                                             ".rds"))
-resultado <- classificar_painel_pnadc(here(getwd(), "PNAD_data", "Pareamentos", paste0("pessoas_", 
-                                                                                       periodos_analise$ano_inicio, periodos_analise$tri_inicio,
-                                                                                       "_", periodos_analise$ano_fim, periodos_analise$tri_fim,
-                                                                                       ".parquet")))
-
-str(resultado$dados_classificados)
-print(resultado$resumo_domicilios)
-if(!is.null(resultado$resumo_individuos)) print(resultado$resumo_individuos)
+if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
+  periodos_analise = obter_periodos() # obtendo periodos desejados pelo usuario
+  colunas_id_func(periodos_analise)
+  resultado <- classificar_painel_pnadc(here(getwd(), "PNAD_data", "Pareamentos", paste0("pessoas_", 
+                                                                                         periodos_analise$ano_inicio, periodos_analise$tri_inicio,
+                                                                                         "_", periodos_analise$ano_fim, periodos_analise$tri_fim,
+                                                                                         ".parquet")))
+  
+  str(resultado$dados_classificados)
+  print(resultado$resumo_domicilios)
+  if(!is.null(resultado$resumo_individuos)) print(resultado$resumo_individuos)
+}
