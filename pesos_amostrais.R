@@ -73,7 +73,7 @@ cat("Indivíduos com todas as 5 entrevistas:", n_distinct(dados_completos$ID_UNI
 dados_heatmap <- dados_completos %>%
   mutate(
     faixa_peso = cut(V1028, 
-                    breaks = unique(quantile(V1028, probs = seq(0, 1, length.out = 11), na.rm = TRUE)), # Decis de V1028
+                    breaks = unique(quantile(V1028, probs = seq(0, 1, length.out = 6), na.rm = TRUE)), # Decis de V1028
                     include.lowest = TRUE, 
                     dig.lab = 5,
                     labels = NULL)
@@ -81,12 +81,14 @@ dados_heatmap <- dados_completos %>%
 
 # 2. Contar a frequência de indivíduos por Faixa de Peso e Período
 contagem_heatmap <- dados_heatmap %>%
-  group_by(periodo) %>% # 'periodo' já é sequencial (e.g., 1 a 5)
+  group_by(Ano, Trimestre, periodo) %>% # 'periodo' já é sequencial (e.g., 1 a 5)
   count(faixa_peso, name = "Frequencia") %>%
   ungroup() %>%
   mutate(
-    periodo_label = paste0("Entrevista ", periodo),
-    faixa_peso = as.factor(faixa_peso) # Garante que as faixas sejam tratadas como categorias
+    periodo_label = paste0(Ano, "_T", Trimestre),
+    # Garante a ordenação: primeiro por Ano, depois por Trimestre.
+    periodo_label = factor(periodo_label, levels = unique(periodo_label[order(Ano, Trimestre)])),
+    faixa_peso = as.factor(faixa_peso)
   )
 
 # 3. Gráfico Heatmap
@@ -94,8 +96,8 @@ grafico_heatmap <- ggplot(contagem_heatmap,
                         aes(x = periodo_label, 
                             y = faixa_peso, 
                             fill = Frequencia)) +
-  geom_tile(color = "white") + # Adiciona bordas brancas para separar as células
-  scale_fill_viridis_c(name = "Contagem de Indivíduos", direction = -1) + # Escala de cor para a frequência
+  geom_tile(color = "white", linewidth = 0.5) + # Adiciona bordas brancas para separar as células
+  scale_fill_viridis_c(name = "Contagem de Indivíduos", option = "magma", direction = -1) + # Escala de cor para a frequência
   labs(
     title = paste0("Distribuição de Frequência do Peso Amostral (V1028) - ", ano, "T", tri),
     subtitle = "Indivíduos de Classe 1 com 5 Entrevistas (Decis de V1028)",
