@@ -62,6 +62,9 @@ catch_median_renda <- function(y, t) {
   dados_sel <- dados %>%
     select(ID_UNICO, VD4020, Ano, Trimestre) # renda efetiva total
   
+  dados_sel <- dados_sel %>%
+    filter(VD4020 != 0)
+
   # calcular a mediana
   mediana_renda <- median(dados_sel$VD4020, na.rm = TRUE)
   return(mediana_renda)
@@ -71,38 +74,30 @@ catch_median_renda <- function(y, t) {
 classificar_trabalhador_app <- function(df) {
   df <- df %>%
     mutate(
-      #trabalhadores em plataformas digitais de transporte de passageiros
-     # plataforma_transporte = if_else(
-      #  V4013 == 49030 & V4010 %in% c(8321, 8322),
-       # 1, 0
-    #  ),
+      # trabalhadores em plataformas digitais de transporte de passageiros
+      plataforma_transporte = if_else(
+       V4013 == 49030 & V4010 %in% c(8321, 8322),
+       1, 0
+      ),
       
       # trabalhadores em plataformas digitais de entrega
-     # plataforma_entrega = if_else(
-      #  V4013 %in% c(49040, 53002) & V4010 %in% c(8321, 8322),
-      #  1, 0
-      #)
-      
-      #trabalhadores em plataformas digitais de transporte de passageiros
-       plataforma_transporte = if_else(
-       V4010 %in% c(8321, 8322),
-       1, 0
-       ),
-      
-       #trabalhadores em plataformas digitais de entrega
-       plataforma_entrega = if_else(
-       V4010 %in% c(8321, 8322),
-       1, 0
+      plataforma_entrega = if_else(
+        V4013 %in% c(49040, 53002) & V4010 %in% c(8321, 8322),
+        1, 0
       )
+      
+    #  #trabalhadores em plataformas digitais de transporte de passageiros
+    #   plataforma_transporte = if_else(
+    #   V4010 %in% c(8321, 8322),
+    #   1, 0
+    #   ),
+    #  
+    #   #trabalhadores em plataformas digitais de entrega
+    #   plataforma_entrega = if_else(
+    #   V4010 %in% c(8321, 8322),
+    #   1, 0
+    #  )
     )
   
   return(df)
 }
-
-
-
-
-
-
-
-
