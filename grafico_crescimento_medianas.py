@@ -2,17 +2,28 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-medianas = {(2019, 1) : 1300, (2019, 2) : 1200,
-            (2019, 3) : 1293,(2019, 4) : 1350,
-            (2020, 1) : 1500,(2020, 2) : 1300,
-            (2020, 3) : 1300,(2020, 4) : 1400,
-            (2021, 1) : 1500,(2021, 2) : 1350,
-            (2021, 4) : 1400,(2021, 3) : 1350,
-            (2022, 1) : 1500,(2022, 2) : 1500,
-            (2022, 3) : 1500,(2022, 4) : 1500,
-            (2023, 1) : 1700,(2023, 2) : 1600,
-            (2023, 3) : 1600,(2023, 4) : 1780,
-            (2024, 1) : 1900,(2024, 2) : 1800}
+medianas = {(2019, 1) : 1500,
+(2019, 2) : 1400,
+(2019, 3) : 1500,
+(2019, 4) : 1500,
+(2020, 1) : 1500,
+(2020, 2) : 1200,
+(2020, 3) : 1250,
+(2020, 4) : 1300,
+(2021, 1) : 1400,
+(2021, 2) : 1300,
+(2021, 3) : 1300,
+(2021, 4) : 1400,
+(2022, 1) : 1500,
+(2022, 2) : 1500,
+(2022, 3) : 1500,
+(2022, 4) : 1600,
+(2023, 1) : 1720,
+(2023, 2) : 1700,
+(2023, 3) : 1700,
+(2023, 4) : 1800,
+(2024, 1) : 2000,
+(2024, 2) : 2000}
 
 def tratamento_medianas(medianas):
     df = {'Ano': [0], 'Trimestre': [0], 'Mediana': [0]}
@@ -41,7 +52,7 @@ df_medianas = df_medianas.sort_values(['Ano', 'Trimestre']).reset_index(drop=Tru
 # print("DataFrame de Medidas (ordenado):")
 # print(df_medianas)
 
-############### Gráfico de Linha
+############### Gráfico de Linha Absoluta
 
 plt.figure(figsize=(10, 6))
 sns.lineplot(
@@ -63,9 +74,9 @@ sns.regplot(
     line_kws={'color':'black', 'linestyle':'--'}
 )
 
-plt.title('Evolução da Mediana por Trimestre da Renda Efetiva Total', fontsize=14, fontweight='bold')
+plt.title('Evolução da Mediana da Renda dos Transporte por Aplicativo', fontsize=14, fontweight='bold')
 plt.xlabel('Período da Entrevista (Ano_Trimestre)')
-plt.ylabel('Mediana do Peso Amostral')
+plt.ylabel('Mediana')
 plt.grid(True, axis='y', linestyle='--', alpha=0.7)
 plt.xticks(rotation=45, ha='right')
 plt.tight_layout()
@@ -117,9 +128,39 @@ for index, row in df_variacao.iterrows():
 
 plt.axhline(0, color='gray', linestyle='--')
 
-plt.title('Variação Percentual Trimestral da Mediana da Renda Efetiva Total', fontsize=14, fontweight='bold')
+plt.title('Variação Percentual Trimestral da Mediana da Renda dos Transporte por Aplicativo', fontsize=14, fontweight='bold')
 plt.xlabel('Período de Comparação (Trimestre Anterior -> Trimestre Atual)')
 plt.ylabel('Variação Percentual (%)')
+plt.xticks(rotation=45, ha='right')
+plt.tight_layout()
+plt.show()
+
+############### Gráfico de Linha Variação
+
+plt.figure(figsize=(10, 6))
+sns.lineplot(
+    data=df_variacao,
+    x='periodo_label',
+    y='Variacao_Percentual',
+    marker='o',
+    linestyle='-',
+    color='royalblue',
+    linewidth=2
+)
+# Adiciona linha de tendência
+sns.regplot(
+    data=df_variacao,
+    x=df_variacao.index, # Usa o índice para a regressão
+    y='Variacao_Percentual',
+    scatter=False,
+    ci = None,
+    line_kws={'color':'black', 'linestyle':'--'}
+)
+
+plt.title('Variação Percentual Trimestral da Mediana da Renda dos Transporte por Aplicativo', fontsize=14, fontweight='bold')
+plt.xlabel('Período da Entrevista (Ano_Trimestre)')
+plt.ylabel('Variação Percentual (%)')
+plt.grid(True, axis='y', linestyle='--', alpha=0.7)
 plt.xticks(rotation=45, ha='right')
 plt.tight_layout()
 plt.show()
