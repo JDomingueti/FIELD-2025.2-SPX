@@ -16,8 +16,10 @@ make_path <- function(year, trimester) {
 
 make_parquet <- function(year, trimester) {
   columns_to_keep = c("Ano", "Trimestre", "UF", "UPA", "V1008", "V1014", "V2003",
-                      "V2005", "V2007", "V2009", "V2008", "V2010", "V1027", "V1028", "V3009A", "V20081", "V20082", "VD4016", "VD4002", "VD4020", 
-                      "VD4035", "VD4002", "VD4019", "VD4017", "V4013")
+                      "V2005", "V2007", "V2009", "V2008", "V2010", "V1027", "V1028",
+                      "V3009A", "V20081", "V20082", "VD4016", "VD4002", "VD4020", 
+                      "VD4035", "VD4002", "VD4019", "VD4017", "V4013", "V4010",
+                      "V4041", "V4012", "V4043")
 
   paths = make_path(year, trimester)
 
