@@ -29,7 +29,10 @@ colunas_id_func <- function(periodos_analise, is_parquet) {
                     "V4012",  #  Posicao da Ocupacao princ.
                     "V4043",   #  Porsicao da Ocupacao sec.
                     "V20082",   # Ano de nascimento
-                    "V4013"   # Código de atividade negócio/empresa principal
+                    "V4013",   # Código de atividade negócio/empresa principal
+                    "VD4001",   # Condicao em relacao a forca de trabalho
+                    "V4040",  # Tempo que esta no mesmo emprego
+                    "VD4009"   #Posicao na ocupac. (mais detalhado)
     )
 
     t0 <- shift_quarter(ano_t, tri_t, 0)

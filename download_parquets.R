@@ -10,7 +10,7 @@ download_parquet <- function(year, trimester, deflator) {
                       "V2005", "V2007", "V2009", "V2008", "V2010", "V1027", "V1028",
                       "V3009A", "V20081", "V20082", "VD4016", "VD4002", "VD4020", 
                       "VD4035", "VD4002", "VD4019", "VD4017", "V4013", "V4010",
-                      "V4041", "V4012", "V4043")
+                      "V4041", "V4012", "V4043", "VD4001", "V4040", "VD4009")
   dir_path <- here(std_path, "PNAD_data", year)
   if (!dir.exists(dir_path)) dir.create(dir_path, recursive = TRUE)
   df <- get_pnadc(year, trimester, deflator = deflator, labels = FALSE, design = FALSE)[columns_to_keep]
@@ -34,5 +34,5 @@ if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
     }
   } else download_parquet(as.integer(readline(" -> Ano a ser baixado: ")),
                           as.integer(readline(" -> Trimestre a ser baixado: ")),
-                          defl == 1, txt == 1)
+                          defl == 1)
 }
