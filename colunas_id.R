@@ -8,7 +8,7 @@ source("utils.R")
 std_path <- getwd()
 lpath <- here(std_path, "PNAD_data", "input_PNADC_trimestral.txt")
 
-colunas_id_func <- function(periodos_analise) {
+colunas_id_func <- function(periodos_analise, is_parquet) {
     # Defina os trimestres que você quer comparar
     ano_t  <- periodos_analise$ano_inicio; tri_t  <- periodos_analise$tri_inicio   # trimestre inicial
     ano_t4 <- periodos_analise$ano_fim; tri_t4 <- periodos_analise$tri_fim  # trimestre +4
@@ -38,13 +38,19 @@ colunas_id_func <- function(periodos_analise) {
     t3 <- shift_quarter(ano_t, tri_t, 3)
     t4 <- shift_quarter(ano_t, tri_t, 4)
 
-
-    pnadc_t0_survey <- read_pnadc(make_path(t0$year, t0$tri)[1], lpath, vars=vars_needed)
-    pnadc_t1_survey <- read_pnadc(make_path(t1$year, t1$tri)[1], lpath, vars=vars_needed)
-    pnadc_t2_survey <- read_pnadc(make_path(t2$year, t2$tri)[1], lpath, vars=vars_needed)
-    pnadc_t3_survey <- read_pnadc(make_path(t3$year, t3$tri)[1], lpath, vars=vars_needed)
-    pnadc_t4_survey <- read_pnadc(make_path(t4$year, t4$tri)[1], lpath, vars=vars_needed)
-
+    if (is_parquet) {
+      pnadc_t0_survey <- read_parquet(make_path(t0$year, t0$tri)[2], col_select=vars_needed)
+      pnadc_t1_survey <- read_parquet(make_path(t1$year, t1$tri)[2], col_select=vars_needed)
+      pnadc_t2_survey <- read_parquet(make_path(t2$year, t2$tri)[2], col_select=vars_needed)
+      pnadc_t3_survey <- read_parquet(make_path(t3$year, t3$tri)[2], col_select=vars_needed)
+      pnadc_t4_survey <- read_parquet(make_path(t4$year, t4$tri)[2], col_select=vars_needed)
+    } else {
+      pnadc_t0_survey <- read_pnadc(make_path(t0$year, t0$tri)[1], lpath, vars=vars_needed)
+      pnadc_t1_survey <- read_pnadc(make_path(t1$year, t1$tri)[1], lpath, vars=vars_needed)
+      pnadc_t2_survey <- read_pnadc(make_path(t2$year, t2$tri)[1], lpath, vars=vars_needed)
+      pnadc_t3_survey <- read_pnadc(make_path(t3$year, t3$tri)[1], lpath, vars=vars_needed)
+      pnadc_t4_survey <- read_pnadc(make_path(t4$year, t4$tri)[1], lpath, vars=vars_needed)
+    }
 
     #pnadc_t_survey  <- get_pnadc(year=ano_t,  quarter=tri_t,  vars=vars_needed)
     #pnadc_t4_survey <- get_pnadc(year=ano_t4, quarter=tri_t4, vars=vars_needed)
@@ -80,6 +86,7 @@ colunas_id_func <- function(periodos_analise) {
 }
 
 if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
+    is_parquet <- as.integer(readline(" -> O arquivo já está em formato parquet. 1 para TRUE: ")) == 1
     periodos_analise = obter_periodos() # obtendo periodos desejados pelo usuario
-    colunas_id_func(periodos_analise)
+    colunas_id_func(periodos_analise, is_parquet)
 }
