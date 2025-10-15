@@ -12,9 +12,12 @@ download_parquet <- function(year, trimester, deflator) {
                       "VD4035", "VD4002", "VD4019", "VD4017", "V4013", "V4010",
                       "V4041", "V4012", "V4043", "VD4001", "V4040", "VD4009")
   dir_path <- here(std_path, "PNAD_data", year)
+  temp_path <- here(std_path, "Temp")
   if (!dir.exists(dir_path)) dir.create(dir_path, recursive = TRUE)
-  df <- get_pnadc(year, trimester, deflator = deflator, labels = FALSE, design = FALSE)[columns_to_keep]
+  if (!dir.exists(temp_path)) dir.create(temp_path)
+  df <- get_pnadc(year, trimester, deflator = deflator, labels = FALSE, design = FALSE, savedir = temp_path)[columns_to_keep]
   write_parquet(df, file.path(dir_path, paste0("PNADC_0", trimester, year, ".parquet")), compression = "snappy")
+  file.remove(list.files(temp_path, full.names = TRUE))
 }
 
 if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
