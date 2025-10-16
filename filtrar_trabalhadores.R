@@ -1,3 +1,4 @@
+library(dplyr)
 
 # ====== FUNCAO PARA IDENTIFICAR SE UM TRABALHADOR É DE APP DE MOTORISTA OU DE ENTREGA ========
 classificar_trabalhador_app <- function(df) {
