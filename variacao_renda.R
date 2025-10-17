@@ -5,11 +5,12 @@ library(arrow)
 library(here)
 library(scales)
 
+std_path <- getwd()
 # Caminho base onde estão os arquivos parquet
-pasta_base <- here("FIELD-2025.2-SPX", "PNAD_data", "Pareamentos")
+pasta_base <- here(std_path,"PNAD_data", "Pareamentos")
 
 # Arquivo onde os resultados serão salvos
-arquivo_saida_texto <- here("mediana_variacao_renda.txt")
+arquivo_saida_texto <- here(std_path, "mediana_variacao_renda.txt")
 
 # Limpa o arquivo antes de começar
 cat("", file = arquivo_saida_texto)
@@ -52,11 +53,11 @@ for (ano in anos) {
       mutate(periodo_label = paste0(Ano, "_", Trimestre)) %>%
       filter(periodo_label %in% c(rotulo_primeiro, rotulo_ultimo)) %>%
       group_by(ID_UNICO, periodo_label) %>%
-      summarise(VD4019 = median(VD4019, na.rm = TRUE), .groups = 'drop') %>%
+      summarise(VD4020 = median(VD4020, na.rm = TRUE), .groups = 'drop') %>% # usando renda efetiva
       pivot_wider(
         id_cols = ID_UNICO,
         names_from = periodo_label,
-        values_from = VD4019,
+        values_from = VD4020,
         names_prefix = "renda_"
       ) %>%
       rename(
@@ -97,6 +98,6 @@ for (ano in anos) {
 print(resultados)
 
 # (Opcional) salva como CSV para análise posterior
-write.csv(resultados, here("medianas_variacao_renda.csv"), row.names = FALSE)
+write.csv(resultados, here(std_path, "medianas_variacao_renda.csv"), row.names = FALSE)
 
 cat("\n Loop concluído! Resultados salvos em:", arquivo_saida_texto, "\n")

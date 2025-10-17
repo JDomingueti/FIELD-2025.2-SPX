@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns 
 
 # Carrega os dados
-df_medianas = pd.read_csv("../medianas_variacao_renda.csv")
+df_medianas = pd.read_csv("medianas_variacao_renda.csv")
 
 # Cria uma coluna combinando ano e trimestre, por exemplo: "2012.1"
 df_medianas['ano_tri'] = df_medianas['ano_inicial'].astype(str) + '.' + df_medianas['trimestre'].astype(str)
@@ -24,11 +24,11 @@ sns.lineplot(
     linestyle='-',
     color='darkblue',
     linewidth=2,
-    ci=None)
+    errorbar=None)
 
-plt.title('Evolução da Variação da Mediana da Renda Habitual', fontsize=13, loc = 'left', fontweight = 'bold')
+plt.title('Evolução da Mediana da Variação da Renda Efetiva', fontsize=13, loc = 'left', fontweight = 'bold')
 plt.xlabel('Período da Entrevista (Ano.Trimestre)')
-plt.ylabel('Variação da Mediana (%)')
+plt.ylabel('Mediana da Variação (%)')
 plt.ylim(0, 11)  
 plt.yticks(range(0, 12, 1))
 plt.grid(True, axis='y')
