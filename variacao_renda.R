@@ -5,12 +5,18 @@ library(arrow)
 library(here)
 library(scales)
 
+# Escolha de filtro para calcular a mediana
+repeat {
+  filtro <- readline("Escolha o filtro (0 = Sem filtro | 1 = Trab de App | 2 = Job Switcher):")
+  if (filtro %in% c("0", "1", "2")) break
+  cat("FIltro Inválido")
+}
 std_path <- getwd()
 # Caminho base onde estão os arquivos parquet
 pasta_base <- here(std_path,"PNAD_data", "Pareamentos")
 
 # Arquivo onde os resultados serão salvos
-arquivo_saida_texto <- here(std_path, "mediana_variacao_renda.txt")
+arquivo_saida_texto <- here(std_path, paste0("medianas_variacao_renda_", filtro, ".txt"))
 
 # Limpa o arquivo antes de começar
 cat("", file = arquivo_saida_texto)
@@ -49,6 +55,19 @@ for (ano in anos) {
     
     dados_classificados <- read_parquet(arquivo_entrada)
     
+    #Filtrando por tipo de trabalhador
+    if (filtro == "1"){
+      dados_classificados <- dados_classificados %>%
+        filter(plataforma_transporte == 1 | plataforma_entrega == 1)
+      
+    } else if (filtro == "2"){
+      dados_classificados <- dados_classificados %>%
+        filter(job_switcher == 1)
+      
+    } else if (filtro == "0"){
+      # mantem todos os dados
+    }
+    
     dados_variacao <- dados_classificados %>%
       mutate(periodo_label = paste0(Ano, "_", Trimestre)) %>%
       filter(periodo_label %in% c(rotulo_primeiro, rotulo_ultimo)) %>%
@@ -85,7 +104,7 @@ for (ano in anos) {
     
     # Escreve no arquivo de texto
     resultado_texto <- paste0(
-      "Mediana da variação de renda (", rotulo_primeiro, " → ", rotulo_ultimo, "): ",
+      "Mediana da variação de renda (", rotulo_primeiro, " -> ", rotulo_ultimo, "): ",
       scales::percent(mediana_variacao, accuracy = 0.1), "\n"
     )
     
@@ -98,6 +117,6 @@ for (ano in anos) {
 print(resultados)
 
 # (Opcional) salva como CSV para análise posterior
-write.csv(resultados, here(std_path, "medianas_variacao_renda.csv"), row.names = FALSE)
+write.csv(resultados, here(std_path, paste0("medianas_variacao_renda_", filtro, ".csv")), row.names = FALSE)
 
 cat("\n Loop concluído! Resultados salvos em:", arquivo_saida_texto, "\n")

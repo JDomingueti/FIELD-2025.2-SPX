@@ -1,37 +1,51 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns 
+import os
 
-# Carrega os dados
-df_medianas = pd.read_csv("medianas_variacao_renda.csv")
+filtro = {
+    0: "",
+    1: "Trabalhador de App",
+    2: "Job Switcher"
+}
 
-# Cria uma coluna combinando ano e trimestre, por exemplo: "2012.1"
-df_medianas['ano_tri'] = df_medianas['ano_inicial'].astype(str) + '.' + df_medianas['trimestre'].astype(str)
+# navegando por todos os filtros de mediana
+for i in (0, 1, 2):
+    # Carrega os dados
+    if os.path.exists(f"medianas_variacao_renda_{i}.csv"):
+        df_medianas = pd.read_csv("medianas_variacao_renda.csv")
 
-# Para regressão, vamos criar um eixo numérico contínuo
-df_medianas['x_numeric'] = range(len(df_medianas))
+        # Cria uma coluna combinando ano e trimestre, por exemplo: "2012.1"
+        df_medianas['ano_tri'] = df_medianas['ano_inicial'].astype(str) + '.' + df_medianas['trimestre'].astype(str)
 
-df_medianas['mediana_variacao'] = df_medianas['mediana_variacao'] * 100
+        # Para regressão, vamos criar um eixo numérico contínuo
+        df_medianas['x_numeric'] = range(len(df_medianas))
 
-plt.figure(figsize=(10, 6))
+        df_medianas['mediana_variacao'] = df_medianas['mediana_variacao'] * 100
 
-# Linha principal
-sns.lineplot(
-    data=df_medianas,
-    x='ano_tri',
-    y='mediana_variacao',
-    marker='o',
-    linestyle='-',
-    color='darkblue',
-    linewidth=2,
-    errorbar=None)
+        plt.figure(figsize=(10, 6))
 
-plt.title('Evolução da Mediana da Variação da Renda Efetiva', fontsize=13, loc = 'left', fontweight = 'bold')
-plt.xlabel('Período da Entrevista (Ano.Trimestre)')
-plt.ylabel('Mediana da Variação (%)')
-plt.ylim(0, 11)  
-plt.yticks(range(0, 12, 1))
-plt.grid(True, axis='y')
-plt.xticks(rotation=45, ha='right')
-plt.tight_layout()
-plt.show()
+        # Linha principal
+        sns.lineplot(
+            data=df_medianas,
+            x='ano_tri',
+            y='mediana_variacao',
+            marker='o',
+            linestyle='-',
+            color='darkblue',
+            linewidth=2,
+            errorbar=None)
+
+        plt.title(f'Evolução da Mediana da Variação da Renda Efetiva - {filtro[i]}', fontsize=13, loc = 'left', fontweight = 'bold')
+        plt.xlabel('Período da Entrevista (Ano.Trimestre)')
+        plt.ylabel('Mediana da Variação (%)')
+        plt.ylim(0, 11)  
+        plt.yticks(range(0, 12, 1))
+        plt.grid(True, axis='y')
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+        plt.show()
+    else:
+        print(f"Arquivo com filtro {i} nao existe!")
+    
+    
