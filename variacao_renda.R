@@ -33,6 +33,14 @@ resultados <- data.frame(
   stringsAsFactors = FALSE
 )
 
+estatisticas_var_zero <- data.frame(
+  ano_final = integer(),
+  trimestre = integer(),
+  percentual_zero = numeric(),
+  percentual_menor_igual_zero = numeric(),
+  stringsAsFactors = FALSE
+)
+
 # Loop principal
 for (ano in anos) {
   for (tri in trimestres) {
@@ -70,6 +78,7 @@ for (ano in anos) {
     
     dados_variacao <- dados_classificados %>%
       mutate(periodo_label = paste0(Ano, "_", Trimestre)) %>%
+      filter(classe_individuo %in% 1:3) %>% # Filtrando individuos de classe 1 a 3
       filter(periodo_label %in% c(rotulo_primeiro, rotulo_ultimo)) %>%
       group_by(ID_UNICO, periodo_label) %>%
       summarise(VD4020 = median(VD4020, na.rm = TRUE), .groups = 'drop') %>% # usando renda efetiva
@@ -95,6 +104,30 @@ for (ano in anos) {
     # Calcula mediana da variação
     mediana_variacao <- median(dados_variacao$variacao_renda, na.rm = TRUE)
     
+    # Estatisticas de variacao nula e menor que 0 no caso sem filtro
+    if (filtro == "0"){
+      # DEBUG
+      contagens <- dados_variacao %>%
+        summarise(
+          total_obs = n(),
+          obs_variacao_zero = sum(variacao_renda == 0, na.rm = TRUE),
+          obs_variacao_menor_igual_zero = sum(variacao_renda <= 0, na.rm = TRUE)
+        ) %>%
+        mutate(
+          percentual_zero = obs_variacao_zero / total_obs,
+          percentual_menor_igual_zero = obs_variacao_menor_igual_zero / total_obs 
+        )
+      
+      # adiciona ao df de estatisticas
+      estatisticas_var_zero <- rbind(estatisticas_var_zero, data.frame(
+        ano_final = end_ano,
+        trimestre = start_tri,
+        percentual_zero = contagens$percentual_zero,
+        percentual_menor_igual_zero = contagens$percentual_menor_igual_zero
+      ))
+      cat("Proporção de variação <= 0:", scales::percent(contagens$percentual_menor_igual_zero), "\n")
+    }
+    
     # Adiciona ao dataframe de resultados
     resultados <- rbind(resultados, data.frame(
       ano_final = end_ano,
@@ -115,6 +148,11 @@ for (ano in anos) {
 
 # Exibe tabela final de resultados
 print(resultados)
+
+# salva o df de estatisticas de var zero 
+if (filtro == "0" && nrow(estatisticas_var_zero) > 0) {
+  write.csv(estatisticas_var_zero, here(std_path, "estatisticas_variacao_nula.csv"), row.names = FALSE)
+}
 
 # (Opcional) salva como CSV para análise posterior
 write.csv(resultados, here(std_path, paste0("medianas_variacao_renda_", filtro, ".csv")), row.names = FALSE)
