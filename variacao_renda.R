@@ -27,7 +27,7 @@ trimestres <- 1:4
 
 # Data frame para armazenar todos os resultados
 resultados <- data.frame(
-  ano_inicial = integer(),
+  ano_final = integer(),
   trimestre = integer(),
   mediana_variacao = numeric(),
   stringsAsFactors = FALSE
@@ -86,7 +86,7 @@ for (ano in anos) {
       mutate(
         variacao_renda = case_when(
           is.na(renda_primeiro) | is.na(renda_ultimo) ~ NA_real_,
-          renda_primeiro == 0 & renda_ultimo == 0 ~ 0,
+          renda_primeiro == 0 | renda_ultimo == 0 ~ NA_real_,
           TRUE ~ (renda_ultimo - renda_primeiro) / renda_primeiro
         )
       ) %>%
@@ -97,7 +97,7 @@ for (ano in anos) {
     
     # Adiciona ao dataframe de resultados
     resultados <- rbind(resultados, data.frame(
-      ano_inicial = start_ano,
+      ano_final = end_ano,
       trimestre = start_tri,
       mediana_variacao = mediana_variacao
     ))

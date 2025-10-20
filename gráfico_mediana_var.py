@@ -13,10 +13,10 @@ filtro = {
 for i in (0, 1, 2):
     # Carrega os dados
     if os.path.exists(f"medianas_variacao_renda_{i}.csv"):
-        df_medianas = pd.read_csv("medianas_variacao_renda.csv")
+        df_medianas = pd.read_csv(f"medianas_variacao_renda_{i}.csv")
 
         # Cria uma coluna combinando ano e trimestre, por exemplo: "2012.1"
-        df_medianas['ano_tri'] = df_medianas['ano_inicial'].astype(str) + '.' + df_medianas['trimestre'].astype(str)
+        df_medianas['ano_tri'] = df_medianas['ano_final'].astype(str) + '.' + df_medianas['trimestre'].astype(str)
 
         # Para regressão, vamos criar um eixo numérico contínuo
         df_medianas['x_numeric'] = range(len(df_medianas))
