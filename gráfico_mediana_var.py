@@ -12,7 +12,7 @@ filtro = {
 }
 
 # navegando por todos os filtros de mediana
-for i in (0, 1, 2):
+for i in (filtro.keys()):
     # Carrega os dados
     if os.path.exists(f"medianas_variacao_renda_{i}.csv"):
         df_medianas = pd.read_csv(f"medianas_variacao_renda_{i}.csv")
