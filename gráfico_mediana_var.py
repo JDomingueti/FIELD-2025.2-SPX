@@ -6,9 +6,7 @@ import os
 filtro = {
     0: "",
     1: "Trabalhador de App",
-    2: "Job Switcher",
-    3: "Trabalhador de App - Deflator",
-    4: "Job Switcher - Deflator"
+    2: "Job Switcher"
 }
 
 # navegando por todos os filtros de mediana
