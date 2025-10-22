@@ -6,7 +6,9 @@ import os
 filtro = {
     0: "",
     1: "Trabalhador de App",
-    2: "Job Switcher"
+    2: "Job Switcher",
+    3: "Trabalhador de App - Deflator",
+    4: "Job Switcher - Deflator"
 }
 
 # navegando por todos os filtros de mediana
@@ -39,8 +41,12 @@ for i in (0, 1, 2):
         plt.title(f'Evolução da Mediana da Variação da Renda Efetiva - {filtro[i]}', fontsize=13, loc = 'left', fontweight = 'bold')
         plt.xlabel('Período da Entrevista (Ano.Trimestre)')
         plt.ylabel('Mediana da Variação (%)')
-        plt.ylim(0, 11)  
-        plt.yticks(range(0, 12, 1))
+        if i == 1:
+            plt.ylim(-16, 13)
+            plt.yticks(range(-17, 14, 1))
+        else:
+            plt.ylim(0, 11)
+            plt.yticks(range(0, 12, 1))
         plt.grid(True, axis='y')
         plt.xticks(rotation=45, ha='right')
         plt.tight_layout()

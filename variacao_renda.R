@@ -7,7 +7,7 @@ library(scales)
 
 # Escolha de filtro para calcular a mediana
 repeat {
-  filtro <- readline("Escolha o filtro (0 = Sem filtro | 1 = Trab de App | 2 = Job Switcher):")
+  filtro <- readline("Escolha o filtro (0 = Sem filtro | 1 = Trab de App | 2 = Job Switcher | 3 = Trab de App - Deflator | 4 = Job Switcher - Deflator):")
   if (filtro %in% c("0", "1", "2")) break
   cat("FIltro Inválido")
 }
