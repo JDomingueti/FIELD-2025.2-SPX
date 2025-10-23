@@ -20,7 +20,7 @@ for i in (filtro.keys()):
 
         # Cria uma coluna combinando ano e trimestre, por exemplo: "2012.1"
         df_medianas['ano_tri'] = df_medianas['ano_final'].astype(str) + '.' + df_medianas['trimestre'].astype(str)
-
+        
         # Removendo outlier no caso do Deflator
         if "D" in str(i):
             df_medianas = df_medianas[df_medianas['ano_tri'] != '2021.4']
