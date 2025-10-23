@@ -7,8 +7,8 @@ library(scales)
 
 # Escolha de filtro para calcular a mediana
 repeat {
-  filtro <- readline("Escolha o filtro (0 = Sem filtro | 1 = Trab de App | 2 = Job Switcher:")
-  if (filtro %in% c("0", "1", "2")) break
+  filtro <- readline("Escolha o filtro:\n 0 = Sem filtro\n 1 = Trab de App\n 2 = Job Switcher\n 0D = Sem Filtro com Deflator\n 1D = Trab de App com Deflator\n 2D = Job Switcher com Deflator")
+  if (filtro %in% c("0", "1", "2", "0D", "1D", "2D")) break
   cat("FIltro Inválido")
 }
 std_path <- getwd()
@@ -64,11 +64,11 @@ for (ano in anos) {
     dados_classificados <- read_parquet(arquivo_entrada)
     
     #Filtrando por tipo de trabalhador
-    if (filtro == "1"){
+    if (filtro == "1" || filtro == "1D"){
       dados_classificados <- dados_classificados %>%
         filter(plataforma_transporte == 1 | plataforma_entrega == 1)
       
-    } else if (filtro == "2"){
+    } else if (filtro == "2" || filtro == "2D"){
       dados_classificados <- dados_classificados %>%
         filter(job_switcher == 1)
       
@@ -81,11 +81,11 @@ for (ano in anos) {
       filter(classe_individuo %in% 1:3) %>% # Filtrando individuos de classe 1 a 3
       filter(periodo_label %in% c(rotulo_primeiro, rotulo_ultimo)) %>%
       group_by(ID_UNICO, periodo_label) %>%
-      summarise(VD4020 = median(VD4020, na.rm = TRUE), .groups = 'drop') %>% # usando renda efetiva
+      summarise(VD4019 = median(VD4019, na.rm = TRUE), .groups = 'drop') %>% # usando renda habitual
       pivot_wider(
         id_cols = ID_UNICO,
         names_from = periodo_label,
-        values_from = VD4020,
+        values_from = VD4019,
         names_prefix = "renda_"
       ) %>%
       rename(
