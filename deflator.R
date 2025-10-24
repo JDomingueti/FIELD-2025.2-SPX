@@ -42,7 +42,9 @@ apply_deflator_parquet <- function(df, deflator) {
   if (is.character(deflator)) {
     def <- read_parquet(deflator)
   } else def <- deflator
-  dfm <- merge(dat, def, by=c("Ano", "UF", "Trimestre"))
+  dfm <- df
+  if (length(setdiff(c("Habitual", "Efetivo"), names(dfm))) > 0)
+    dfm <- merge(dat, def, by=c("Ano", "UF", "Trimestre"))
   dfm$VD4016_deflat <- dfm$VD4016 * dfm$Habitual
   dfm$VD4017_deflat <- dfm$VD4017 * dfm$Efetivo
   dfm$VD4019_deflat <- dfm$VD4019 * dfm$Habitual
