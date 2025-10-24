@@ -3,6 +3,8 @@ library(tidyr)
 library(here)
 library(arrow)
 source("colunas_id.R")
+source("deflator.R")
+
 # ================== AJUSTE DE IDADE ==================
 ajustar_idade_estimativa <- function(idade) {
   if_else(is.na(idade),
@@ -390,6 +392,8 @@ classificar_painel_pnadc <- function(arquivo_pqt) {
     # Criar ID Global
     mutate(ID_UNICO = paste(domicilio_id, grupo_domestico_id, individuo_id, sep = '-'))
   
+  resultado_final <- apply_deflator_parquet(resultado_final, here("PNAD_data", "deflator.parquet"))
+
   # Estatísticas resumo
   cat("\n=== RESULTADOS DA CLASSIFICAÇÃO ===\n")
   
@@ -453,7 +457,7 @@ if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
                                                                                          periodos_analise$ano_inicio, periodos_analise$tri_inicio,
                                                                                          "_", periodos_analise$ano_fim, periodos_analise$tri_fim,
                                                                                          ".parquet")))
-  
+
   str(resultado$dados_classificados)
   print(resultado$resumo_domicilios)
   if(!is.null(resultado$resumo_individuos)) print(resultado$resumo_individuos)
