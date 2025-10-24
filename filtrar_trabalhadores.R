@@ -54,3 +54,35 @@ filtrar_job_switcher <- function(df) {
   
   return(df)
 }
+
+filtrar_carteira_assinada <- function(df) {
+  df <- df %>%
+    mutate(
+      carteira_assinada = if_else(
+        V4029 == 1 , 1, 0
+      )
+    )
+  return(df)
+}
+
+filtrar_salario_minimo <- function(df) {
+ anos <- 2012:2025
+  salarios_minimos <- c(
+    "2012" = ,
+    "2013" = ,
+    "2014" = ,
+    "2015" = ,
+    "2016" = ,
+    "2017" = ,
+    "2018" = ,
+    "2019" = ,
+    "2020" = ,
+    "2021" = ,
+    "2022" = ,
+    "2023" = ,
+    "2024" = ,
+    "2025" =  
+  )
+
+
+}
