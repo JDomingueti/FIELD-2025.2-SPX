@@ -14,26 +14,32 @@ colunas_id_func <- function(periodos_analise, is_parquet) {
     ano_t4 <- periodos_analise$ano_fim; tri_t4 <- periodos_analise$tri_fim  # trimestre +4
 
     # Variáveis necessárias segundo o documento
-    vars_needed <- c("Ano", "Trimestre", "UF", "UPA", "V1008", "V1014",
-                    "V2003",  # ordem da pessoa
-                    "V2007",  # sexo
-                    "V2009",  # idade
-                    "V2005",   # condição no domicílio
-                    "V1028", # peso amostral
-                    "VD4019", # Rend. habitual qq trab.
-                    "VD4020", # Rend. efetivo qq trab.
-                    "VD4016", # Rend. habitual trab. princ.
-                    "VD4017", # Rend. efetivo trab. princ.
-                    "V4010",  # Codigo Ocupacao princ.
-                    "V4041",  # Codigo Ocupacao sec.
-                    "V4012",  #  Posicao da Ocupacao princ.
-                    "V4043",   #  Porsicao da Ocupacao sec.
-                    "V20082",   # Ano de nascimento
-                    "V4013",   # Código de atividade negócio/empresa principal
-                    "VD4001",   # Condicao em relacao a forca de trabalho
-                    "V4040",  # Tempo que esta no mesmo emprego
-                    "VD4009"   #Posicao na ocupac. (mais detalhado)
-    )
+    vars_needed <- c("Ano", "Trimestre", "UF", "UPA", "V1008", "V1014", "V1027", "V1028", 
+                      "V2003", "V2005", "V2007", "V2008", "V20081", "V20082", "V2009", "V2010",
+                      "V3009A", "V4010", "V4012", "V4013", "V4029", "V4040" "V4041", "V4043",
+                      "VD4001", "VD4002", "VD4009", "VD4016", "VD4017", "VD4019", "VD4020", "VD4035")
+                      
+    #                          Colunas antigas
+    #               c("Ano", "Trimestre", "UF", "UPA", "V1008", "V1014",
+    #                 "V2003",  # ordem da pessoa
+    #                 "V2007",  # sexo
+    #                 "V2009",  # idade
+    #                 "V2005",   # condição no domicílio
+    #                 "V1028", # peso amostral
+    #                 "VD4019", # Rend. habitual qq trab.
+    #                 "VD4020", # Rend. efetivo qq trab.
+    #                 "VD4016", # Rend. habitual trab. princ.
+    #                 "VD4017", # Rend. efetivo trab. princ.
+    #                 "V4010",  # Codigo Ocupacao princ.
+    #                 "V4041",  # Codigo Ocupacao sec.
+    #                 "V4012",  #  Posicao da Ocupacao princ.
+    #                 "V4043",   #  Porsicao da Ocupacao sec.
+    #                 "V20082",   # Ano de nascimento
+    #                 "V4013",   # Código de atividade negócio/empresa principal
+    #                 "VD4001",   # Condicao em relacao a forca de trabalho
+    #                 "V4040",  # Tempo que esta no mesmo emprego
+    #                 "VD4009"   #Posicao na ocupac. (mais detalhado)
+    # )
 
     t0 <- shift_quarter(ano_t, tri_t, 0)
     t1 <- shift_quarter(ano_t, tri_t, 1)
