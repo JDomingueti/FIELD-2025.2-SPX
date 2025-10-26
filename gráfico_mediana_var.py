@@ -36,7 +36,7 @@ for i in (filtro.keys()):
             ncols=1,
             figsize=(10, 8),
             sharex=True,
-            gridspec_kw={'height_ratios': [6, 2], 'hspace': 0.05}
+            gridspec_kw={'height_ratios': [6, 2], 'hspace': 0.2}
         )
 
         ax_principal = axes[0]  # Eixo plot mediana
@@ -61,10 +61,10 @@ for i in (filtro.keys()):
 
         if i == '1D':
             ax_principal.set_ylim(-20, 5)
-            ax_principal.set_yticks(range(-21, 5, 1))
+            ax_principal.set_yticks(range(-20, 6, 1))
         elif "D" in str(i):
             ax_principal.set_ylim(-10, 5)
-            ax_principal.set_yticks(range(-11, 6, 1))
+            ax_principal.set_yticks(range(-10, 6, 1))
         elif i == 1:
             ax_principal.set_ylim(0, 15)
             ax_principal.set_yticks(range(0, 16, 1))
@@ -108,10 +108,9 @@ for i in (filtro.keys()):
         ax_obs.set_xticklabels(tick_labels, rotation=45, ha='right')
         ax_obs.grid(True, axis='x', linestyle=':')
 
-        #ax_principal.spines['bottom'].set_visible(False)
-        #ax_obs.spines['top'].set_visible(False)
+        ax_obs.spines['top'].set_visible(False)
 
-        fig.tight_layout(rect=[0, 0, 1, 0.98])
+        fig.tight_layout()
         plt.show()
     else:
         print(f"Arquivo com filtro {i} nao existe!")
