@@ -57,19 +57,38 @@ year_range = st.slider(
 filtered = df[(df["ano_final"] >= year_range[0]) & (df["ano_final"] <= year_range[1])]
 filtered["periodo"] = filtered['ano_final'].astype(str) + '.' + filtered['trimestre'].astype(str)
 
-chart = (
+chart_renda = (
     alt.Chart(filtered)
-    .mark_line()
+    .mark_line(color='red')
     .encode(
         x=alt.X("periodo:O", title="Ano"),
-        y=alt.Y("mediana_variacao:Q", title="Variação Mediana da Renda", axis=alt.Axis(format=".1%"))
+        y=alt.Y("mediana_variacao:Q", title="Variação Mediana da Renda", axis=alt.Axis(format=".1%")),
+        tooltip=['periodo', alt.Tooltip('mediana_variacao', format='.1%')]
         )
-    .configure_mark(color='red'
-)
     .properties(width=800, height=400)
+    .interactive()
 )
 
-st.title("Variação Mediana da Renda")
-st.altair_chart(chart, use_container_width=True, )
+chart_obs = (
+    alt.Chart(filtered)
+    .mark_line(color='green')
+    .encode(
+        x=alt.X("periodo:O", title='Ano'),
+        y=alt.Y("obs:Q", title="N (Amostras)"),
+        tooltip=['periodo','obs']
+    )
+    .properties(height=100)
+    .interactive()
+)
 
-st.caption("Fonte: PNAD Contínua — Dados de 2012 a 2017")
+combined_chart = alt.vconcat(
+    chart_renda,
+    chart_obs,
+).resolve_scale(
+    x = 'shared'
+).configure_view(stroke = None)
+
+st.title("Mediana da Variação da Renda")
+st.altair_chart(combined_chart, use_container_width=True, )
+
+st.caption("Fonte: PNAD Contínua — Dados de 2012 a 2025")
