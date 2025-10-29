@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns 
 import os
-#TODO: Pular 2021.4 no caso de plotar o deflator
+
 filtro = {
     0: "",
     1: "Trabalhador de App",
@@ -30,9 +30,19 @@ for i in (filtro.keys()):
 
         df_medianas['mediana_variacao'] = df_medianas['mediana_variacao'] * 100
 
-        plt.figure(figsize=(10, 6))
+        # Plot com subplot da quantidade de observacoes abaixo
+        fig, axes = plt.subplots(
+            nrows=2,
+            ncols=1,
+            figsize=(10, 8),
+            sharex=True,
+            gridspec_kw={'height_ratios': [6, 2], 'hspace': 0.2}
+        )
 
-        # Linha principal
+        ax_principal = axes[0]  # Eixo plot mediana
+        ax_obs = axes[1]        # Eixo plot obs
+
+        # Plot principal - mediana
         sns.lineplot(
             data=df_medianas,
             x='ano_tri',
@@ -41,30 +51,66 @@ for i in (filtro.keys()):
             linestyle='-',
             color='darkblue',
             linewidth=2,
-            errorbar=None)
-
-        plt.title(f'Evolução da Mediana da Variação da Renda Habitual - {filtro[i]}', fontsize=13, loc = 'left', fontweight = 'bold')
-        plt.xlabel('Período da Entrevista (Ano.Trimestre)')
-        plt.ylabel('Mediana da Variação (%)')
+            errorbar=None,
+            ax=ax_principal)
+        
+        ax_principal.set_title(f'Evolução da Mediana da Variação da Renda Habitual - {filtro[i]}', 
+                               fontsize=13, loc='left', fontweight='bold')
+        ax_principal.set_xlabel('') 
+        ax_principal.set_ylabel('Mediana da Variação (%)')
 
         if i == '1D':
-            plt.ylim(-20, 5)
-            plt.yticks(range(-21, 5, 1))
+            ax_principal.set_ylim(-20, 5)
+            ax_principal.set_yticks(range(-20, 6, 1))
         elif "D" in str(i):
-            plt.ylim(-10, 5)
-            plt.yticks(range(-11, 6, 1))
+            ax_principal.set_ylim(-10, 5)
+            ax_principal.set_yticks(range(-10, 6, 1))
         elif i == 1:
-            plt.ylim(0, 15)
-            plt.yticks(range(0, 16, 1))
+            ax_principal.set_ylim(0, 15)
+            ax_principal.set_yticks(range(0, 16, 1))
         else:
-            plt.ylim(0, 11)
-            plt.yticks(range(0, 12, 1))
+            ax_principal.set_ylim(0, 11)
+            ax_principal.set_yticks(range(0, 12, 1))
 
-        plt.grid(True, axis='y')
-        plt.xticks(rotation=45, ha='right')
-        plt.tight_layout()
+        ax_principal.grid(True, axis='y')
+        ax_principal.tick_params(axis = 'x', which = 'both', bottom=False) 
+
+        # Plot da contagem de amostras
+
+        sns.lineplot(
+           data=df_medianas,
+            x='ano_tri',
+            y='obs',
+            linestyle='--',
+            marker='.',
+            color='green',
+            errorbar=None,
+            ax=ax_obs) 
+
+        ax_obs.set_title('Número de Observações por Trimestre', fontsize=10, loc='left')
+        ax_obs.set_xlabel('Período da Entrevista (Ano.Trimestre)')
+        ax_obs.set_ylabel('N (Amostras)')
+
+        y_min = df_medianas['obs'].min()
+        y_max = df_medianas['obs'].max()
+        ax_obs.set_ylim(0, y_max * 1.1)
+
+        # Ajusta os ticks dos eixos para ambos os plots 
+        all_labels = df_medianas['ano_tri'].tolist()
+
+        tick_indices = [i for i, label in enumerate(all_labels) if label.endswith('.1')]
+        tick_labels = [all_labels[i] for i in tick_indices]
+        if not all_labels[-1].endswith('.1'):
+             tick_indices.append(len(all_labels) - 1)
+             tick_labels.append(all_labels[-1])
+
+        ax_obs.set_xticks(tick_indices)
+        ax_obs.set_xticklabels(tick_labels, rotation=45, ha='right')
+        ax_obs.grid(True, axis='x', linestyle=':')
+
+        ax_obs.spines['top'].set_visible(False)
+
+        fig.tight_layout()
         plt.show()
     else:
         print(f"Arquivo com filtro {i} nao existe!")
-    
-    

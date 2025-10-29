@@ -30,6 +30,7 @@ resultados <- data.frame(
   ano_final = integer(),
   trimestre = integer(),
   mediana_variacao = numeric(),
+  obs = integer(),
   stringsAsFactors = FALSE
 )
 
@@ -40,6 +41,14 @@ estatisticas_var_zero <- data.frame(
   percentual_menor_igual_zero = numeric(),
   stringsAsFactors = FALSE
 )
+
+if (grepl("D", filtro)){
+  coluna_renda <- "VD4019_deflat"
+  cat("\nUsando renda deflacionada")
+} else {
+   coluna_renda <- "VD4019"
+   cat("\nUsando renda nominal")
+}
 
 # Loop principal
 for (ano in anos) {
@@ -81,11 +90,11 @@ for (ano in anos) {
       filter(classe_individuo %in% 1:3) %>% # Filtrando individuos de classe 1 a 3
       filter(periodo_label %in% c(rotulo_primeiro, rotulo_ultimo)) %>%
       group_by(ID_UNICO, periodo_label) %>%
-      summarise(VD4019 = median(VD4019, na.rm = TRUE), .groups = 'drop') %>% # usando renda habitual
+      summarise(Renda = median(.data[[coluna_renda]], na.rm = TRUE), .groups = 'drop') %>% 
       pivot_wider(
         id_cols = ID_UNICO,
         names_from = periodo_label,
-        values_from = VD4019,
+        values_from = Renda,
         names_prefix = "renda_"
       ) %>%
       rename(
@@ -101,6 +110,9 @@ for (ano in anos) {
       ) %>%
       filter(is.finite(variacao_renda))
     
+    # Numero de observacoes de individuos
+    num_obs <- nrow(dados_variacao)
+
     # Calcula mediana da variação
     mediana_variacao <- median(dados_variacao$variacao_renda, na.rm = TRUE)
     
@@ -132,7 +144,8 @@ for (ano in anos) {
     resultados <- rbind(resultados, data.frame(
       ano_final = end_ano,
       trimestre = start_tri,
-      mediana_variacao = mediana_variacao
+      mediana_variacao = mediana_variacao,
+      obs = num_obs
     ))
     
     # Escreve no arquivo de texto
