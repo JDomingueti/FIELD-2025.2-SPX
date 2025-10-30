@@ -16,6 +16,11 @@ def cluster(ano, trimestre):
 
     kmeans = KMeans(n_clusters=2, random_state=42).fit(rendas)
     labels = kmeans.labels_
+    centros = kmeans.cluster_centers_.flatten()
+    
+    if centros[0] > centros[1]:
+        labels = np.where(labels == 0, 1, 0)
+        
     print(f"{ano}.{trimestre}\nCentróides dos grupos: {kmeans.cluster_centers_}\n")
 
     dados["grupo_renda"] = np.nan
