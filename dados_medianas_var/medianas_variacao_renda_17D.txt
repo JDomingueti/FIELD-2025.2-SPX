@@ -27,8 +27,8 @@ Mediana da variação de renda (2018_2 -> 2019_2): -3.6%
 Mediana da variação de renda (2018_3 -> 2019_3): -2.4%
 Mediana da variação de renda (2018_4 -> 2019_4): -2.6%
 Mediana da variação de renda (2019_1 -> 2020_1): -3.0%
-Mediana da variação de renda (2019_2 -> 2020_2): -2.1%
-Mediana da variação de renda (2019_3 -> 2020_3): -2.3%
+Mediana da variação de renda (2019_2 -> 2020_2): -1.4%
+Mediana da variação de renda (2019_3 -> 2020_3): -2.1%
 Mediana da variação de renda (2019_4 -> 2020_4): -3.6%
 Mediana da variação de renda (2020_1 -> 2021_1): -5.0%
 Mediana da variação de renda (2020_2 -> 2021_2): -7.4%
