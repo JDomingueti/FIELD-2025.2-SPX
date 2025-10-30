@@ -16,10 +16,12 @@ def cluster(ano, trimestre):
 
     kmeans = KMeans(n_clusters=2, random_state=42).fit(rendas)
     labels = kmeans.labels_
-    print(f"Centróides dos grupos de {ano}.{trimestre}: {kmeans.cluster_centers_}")
+    print(f"{ano}.{trimestre}\nCentróides dos grupos: {kmeans.cluster_centers_}\n")
 
     dados["grupo_renda"] = np.nan
 
     dados.loc[validos, "grupo_renda"] = labels
+    
+    print(f"Tamanho do grupo 0: {(dados.loc[dados['grupo_renda'] == 0])}\nTamanho do grupo 1: {(dados.loc[dados['grupo_renda'] == 1])}\n \n")
 
     dados.to_parquet(file)
