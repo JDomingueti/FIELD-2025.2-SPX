@@ -25,11 +25,11 @@ grupos_suffix = {
     "14-24 anos": "_14",
     "25-54 anos": "_15",
     "55+ anos": "_16",
-    "Lideres e militares": "_171",
-    "Técnicos e Profissionais": "_172",
-    "Indústria/Comércio/Serviços": "_173",
-    "Trabalhadores qualificados": "_174",
-    "Ocupações Elementares": "_175"
+    "Lideres e militares": "_191",
+    "Técnicos e Profissionais": "_192",
+    "Indústria/Comércio/Serviços": "_193",
+    "Trabalhadores qualificados": "_194",
+    "Ocupações Elementares": "_195"
 }
 
 # Mapeia a opção do deflator para o sufixo
@@ -308,7 +308,7 @@ with tab_ocp:
 
     df_base['Grupo'] = "Base"
     df_lm['Grupo'] = "Lideres"
-    df_tec_prof['Grupo'] = "Profiss."
+    df_tec_prof['Grupo'] = "Profissionais"
     df_ics['Grupo'] = "Essenciais"
     df_qual['Grupo'] = "Qualificados"
     df_ele['Grupo'] = "Elementares"
