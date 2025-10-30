@@ -24,7 +24,12 @@ grupos_suffix = {
     "Percentil 75": "_13",
     "14-24 anos": "_14",
     "25-54 anos": "_15",
-    "55+ anos": "_16"
+    "55+ anos": "_16",
+    "Lideres e militares": "_171",
+    "Técnicos e Profissionais": "_172",
+    "Indústria/Comércio/Serviços": "_173",
+    "Trabalhadores qualificados": "_174",
+    "Ocupações Elementares": "_175"
 }
 
 # Mapeia a opção do deflator para o sufixo
@@ -149,7 +154,7 @@ def create_combined_chart(df, group_column=None):
 st.title("Mediana da Variação da Renda")
 
 # Cria as abas
-tab_base, tab_app, tab_switcher, tab_sexo, tab_regioes, tab_carteira, tab_quartis, tab_idade = st.tabs([
+tab_base, tab_app, tab_switcher, tab_sexo, tab_regioes, tab_carteira, tab_quartis, tab_idade, tab_ocp = st.tabs([
     "Base", 
     "Trabalhador de App", 
     "Job Switcher", 
@@ -157,7 +162,8 @@ tab_base, tab_app, tab_switcher, tab_sexo, tab_regioes, tab_carteira, tab_quarti
     "Regiões",
     "Carteira Assinada",
     "Quartis",
-    "Faixa Etária"
+    "Faixa Etária",
+    "Ocupações"
 ])
 
 # --- Aba 1: Base (Geral) ---
@@ -288,6 +294,30 @@ with tab_idade:
     if not df_idade_combined.empty:
         # Chama a mesma função, mas agora passando 'group_column'
         chart = create_combined_chart(df_idade_combined, group_column="Grupo")
+        st.altair_chart(chart, use_container_width=True)
+
+with tab_ocp:
+    st.header("Grupos de ocupações")
+
+    df_base = load_data(grupos_suffix['Base'] + codigo_deflator)
+    df_lm = load_data(grupos_suffix['Lideres e militares'] + codigo_deflator)
+    df_tec_prof = load_data(grupos_suffix['Técnicos e Profissionais'] + codigo_deflator)
+    df_ics = load_data(grupos_suffix['Indústria/Comércio/Serviços'] + codigo_deflator)
+    df_qual = load_data(grupos_suffix['Trabalhadores qualificados'] + codigo_deflator)
+    df_ele = load_data(grupos_suffix['Ocupações Elementares'] + codigo_deflator)
+
+    df_base['Grupo'] = "Base"
+    df_lm['Grupo'] = "Lideres"
+    df_tec_prof['Grupo'] = "Profiss."
+    df_ics['Grupo'] = "Essenciais"
+    df_qual['Grupo'] = "Qualificados"
+    df_ele['Grupo'] = "Elementares"
+    
+    df_ocp_combined = pd.concat([df_base, df_lm, df_tec_prof, df_ics, df_qual, df_ele])
+
+    if not df_ocp_combined.empty:
+        # Chama a mesma função, mas agora passando 'group_column'
+        chart = create_combined_chart(df_ocp_combined, group_column="Grupo")
         st.altair_chart(chart, use_container_width=True)
 
 st.caption("Fonte: PNAD Contínua — Dados de 2012 a 2025")
