@@ -297,7 +297,7 @@ with tab_faixa_renda:
     st.header("Faixa de Renda")
 
     df_cluster0 = load_data(grupos_suffix['Cluster 0'] + codigo_deflator)
-    df_cluster1 = load_data(grupos_suffix['Cluster 1'] + grupos_suffix)
+    df_cluster1 = load_data(grupos_suffix['Cluster 1'] + codigo_deflator)
     df_base = load_data(grupos_suffix['Base'] + codigo_deflator)
 
     df_cluster0['Grupo'] = "Cluster 0"
