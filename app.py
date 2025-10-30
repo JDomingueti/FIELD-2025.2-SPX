@@ -24,7 +24,9 @@ grupos_suffix = {
     "Percentil 75": "_13",
     "14-24 anos": "_14",
     "25-54 anos": "_15",
-    "55+ anos": "_16"
+    "55+ anos": "_16",
+    "Cluster 0": "_17",
+    "Cluster 1": "_18"
 }
 
 # Mapeia a opção do deflator para o sufixo
@@ -149,7 +151,7 @@ def create_combined_chart(df, group_column=None):
 st.title("Mediana da Variação da Renda")
 
 # Cria as abas
-tab_base, tab_app, tab_switcher, tab_sexo, tab_regioes, tab_carteira, tab_quartis, tab_idade = st.tabs([
+tab_base, tab_app, tab_switcher, tab_sexo, tab_regioes, tab_carteira, tab_quartis, tab_idade, tab_faixa_renda = st.tabs([
     "Base", 
     "Trabalhador de App", 
     "Job Switcher", 
@@ -157,7 +159,8 @@ tab_base, tab_app, tab_switcher, tab_sexo, tab_regioes, tab_carteira, tab_quarti
     "Regiões",
     "Carteira Assinada",
     "Quartis",
-    "Faixa Etária"
+    "Faixa Etária",
+    "Faixa de Renda"
 ])
 
 # --- Aba 1: Base (Geral) ---
@@ -288,6 +291,24 @@ with tab_idade:
     if not df_idade_combined.empty:
         # Chama a mesma função, mas agora passando 'group_column'
         chart = create_combined_chart(df_idade_combined, group_column="Grupo")
+        st.altair_chart(chart, use_container_width=True)
+
+with tab_faixa_renda:
+    st.header("Faixa de Renda")
+
+    df_cluster0 = load_data(grupos_suffix['Cluster 0'] + codigo_deflator)
+    df_cluster1 = load_data(grupos_suffix['Cluster 1'] + grupos_suffix)
+    df_base = load_data(grupos_suffix['Base'] + codigo_deflator)
+
+    df_cluster0['Grupo'] = "Cluster 0"
+    df_cluster1["Grupo"] = "Cluster 1"
+    df_base['Grupo'] = "Base"
+
+    df_cluster_combined = pd.concat([df_cluster0, df_cluster1, df_base])
+
+    if not df_cluster_combined.empty:
+        # Chama a mesma função, mas agora passando 'group_column'
+        chart = create_combined_chart(df_cluster_combined, group_column="Grupo")
         st.altair_chart(chart, use_container_width=True)
 
 st.caption("Fonte: PNAD Contínua — Dados de 2012 a 2025")
