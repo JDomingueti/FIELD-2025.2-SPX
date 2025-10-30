@@ -5,18 +5,32 @@ library(arrow)
 library(here)
 library(scales)
 
+regioes <- c(
+  c(11, 12, 13, 14, 15, 16, 17), #Norte
+  c(21, 22, 23, 24, 25, 26, 27, 28, 29), #Nordeste
+  c(31, 32, 33, 34, 35), #Sudeste
+  c(41, 42, 43), #Sul
+  c(50, 51, 52, 53) #Centro-Oeste
+)
+
 # Escolha de filtro para calcular a mediana
 repeat {
-  filtro <- readline("Escolha o filtro:\n 0 = Sem filtro\n 1 = Trab de App\n 2 = Job Switcher\n 0D = Sem Filtro com Deflator\n 1D = Trab de App com Deflator\n 2D = Job Switcher com Deflator")
-  if (filtro %in% c("0", "1", "2", "0D", "1D", "2D")) break
+  filtro <- readline("Escolha o filtro:\n 0 = Sem filtro\n 1 = Trab de App\n 2 = Job Switcher\n 3 = Masculino\n 4 = Feminino\n 5 = Norte\n 6 = Nordeste\n 7 = Centro-Oeste\n 8 = Sul\n 9 = Sudeste
+  10 = Carteira Assinada\n 11 = Média \n 12 = Percentil 25\n 13 = Percentil 75\n 14 = 14-24 anos\n 15 = 25-54 anos\n 16 = 55+ anos\n Caso queira adicionar deflator basta colocar o codigo seguido de 'D' (exemplo: 0D)")
+  if (filtro %in% c("0", "1", "2", "3","4","5", "6", "7", "8", "9","10","11", "12", "13","14", "15", "16", "0D", "1D", "2D", "3D", "4D", "5D", "6D", "7D", "8D", "9D", "10D", "11D", '12D', "13D", "14D", "15D", "16D")) break
   cat("FIltro Inválido")
 }
+paste0("Filtro escolhido:", filtro)
 std_path <- getwd()
+
+nome_pasta_saida <- "dados_medianas_var"
+pasta_saida <- here(std_path, nome_pasta_saida)
+
 # Caminho base onde estão os arquivos parquet
 pasta_base <- here(std_path,"PNAD_data", "Pareamentos")
 
 # Arquivo onde os resultados serão salvos
-arquivo_saida_texto <- here(std_path, paste0("medianas_variacao_renda_", filtro, ".txt"))
+arquivo_saida_texto <- here(pasta_saida, paste0("medianas_variacao_renda_", filtro, ".txt"))
 
 # Limpa o arquivo antes de começar
 cat("", file = arquivo_saida_texto)
@@ -81,8 +95,48 @@ for (ano in anos) {
       dados_classificados <- dados_classificados %>%
         filter(job_switcher == 1)
       
-    } else if (filtro == "0"){
+    } else if (filtro == "3" || filtro == "3D") { # Masculino
+      dados_classificados <- dados_classificados %>%
+        filter(V2007 == 1)
+
+    } else if (filtro == "4" || filtro == "4D"){ # Feminino
+      dados_classificados <- dados_classificados %>%
+        filter(V2007 == 2) 
+    } 
+    else if (filtro == "0" || filtro == "0D"){
       # mantem todos os dados
+
+    } else if (filtro == "5" || filtro == "5D"){ 
+      dados_classificados <- dados_classificados %>%
+        filter(UF %in% regioes[1])
+
+    } else if (filtro == "6" || filtro == "6D"){
+      dados_classificados <- dados_classificados %>%
+        filter(UF %in% regioes[2])
+
+    } else if (filtro == '7' || filtro == '7D'){
+      dados_classificados <- dados_classificados %>%
+        filter(UF %in% regioes[3])
+
+    } else if (filtro == '8' || filtro == '8D'){
+      dados_classificados <- dados_classificados %>%
+        filter(UF %in% regioes[4])
+
+    } else if (filtro == '9' || filtro == '9D'){
+      dados_classificados <- dados_classificados %>%
+        filter(UF %in% regioes[5])
+    } else if (filtro == '10' || filtro == '10D'){ # carteira assinada
+      dados_classificados <- dados_classificados %>%
+        filter(V4029 == 1)
+    } else if (filtro == '14' || filtro == '14D'){ 
+      dados_classificados <- dados_classificados %>%
+        filter(V2009 >= 14 & V2009 <=24)
+    } else if (filtro == '15' || filtro == '15D'){ 
+      dados_classificados <- dados_classificados %>%
+        filter(V2009 >= 25 & V2009 <=54)
+    }  else if (filtro == '16' || filtro == '16D'){ 
+      dados_classificados <- dados_classificados %>%
+        filter(V2009 >= 55)
     }
     
     dados_variacao <- dados_classificados %>%
@@ -113,8 +167,17 @@ for (ano in anos) {
     # Numero de observacoes de individuos
     num_obs <- nrow(dados_variacao)
 
-    # Calcula mediana da variação
-    mediana_variacao <- median(dados_variacao$variacao_renda, na.rm = TRUE)
+    # calcula estatistica desejada de acordo com o filtro
+    if (filtro == "11" || filtro == "11D") {
+      estatistica_variacao <- mean(dados_variacao$variacao_renda, na.rm = TRUE)
+    } else if (filtro == "12" || filtro == "12D") {
+      estatistica_variacao <- quantile(dados_variacao$variacao_renda, 0.25, na.rm = TRUE)
+    } else if (filtro == "13" || filtro == "13D") {
+      estatistica_variacao <- quantile(dados_variacao$variacao_renda, 0.75, na.rm = TRUE)
+    } else {
+      # Calcula mediana da variação
+      estatistica_variacao <- median(dados_variacao$variacao_renda, na.rm = TRUE)
+    }
     
     # Estatisticas de variacao nula e menor que 0 no caso sem filtro
     if (filtro == "0"){
@@ -144,14 +207,14 @@ for (ano in anos) {
     resultados <- rbind(resultados, data.frame(
       ano_final = end_ano,
       trimestre = start_tri,
-      mediana_variacao = mediana_variacao,
+      mediana_variacao = estatistica_variacao,
       obs = num_obs
     ))
     
     # Escreve no arquivo de texto
     resultado_texto <- paste0(
       "Mediana da variação de renda (", rotulo_primeiro, " -> ", rotulo_ultimo, "): ",
-      scales::percent(mediana_variacao, accuracy = 0.1), "\n"
+      scales::percent(estatistica_variacao, accuracy = 0.1), "\n"
     )
     
     cat(resultado_texto, file = arquivo_saida_texto, append = TRUE)
@@ -168,6 +231,6 @@ if (filtro == "0" && nrow(estatisticas_var_zero) > 0) {
 }
 
 # (Opcional) salva como CSV para análise posterior
-write.csv(resultados, here(std_path, paste0("medianas_variacao_renda_", filtro, ".csv")), row.names = FALSE)
+write.csv(resultados, here(pasta_saida, paste0("medianas_variacao_renda_", filtro, ".csv")), row.names = FALSE)
 
 cat("\n Loop concluído! Resultados salvos em:", arquivo_saida_texto, "\n")
