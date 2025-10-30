@@ -22,6 +22,6 @@ def cluster(ano, trimestre):
 
     dados.loc[validos, "grupo_renda"] = labels
     
-    print(f"Tamanho do grupo 0: {(dados.loc[dados['grupo_renda'] == 0])}\nTamanho do grupo 1: {(dados.loc[dados['grupo_renda'] == 1])}\n \n")
+    print(f"Tamanho do grupo 0: {(dados['grupo_renda'] == 0).sum()}\nTamanho do grupo 1: {(dados['grupo_renda'] == 1).sum()}\n \n")
 
     dados.to_parquet(file)
