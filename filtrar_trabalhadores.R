@@ -90,6 +90,30 @@ filtrar_salario_minimo <- function(df) {
     
   }
 
+}
 
+cluster_renda <- function(df) {
 
+  validos <- !is.na(df$VD4019)
+
+  # Pegar apenas as rendas não Nan
+  rendas <- df$VD4019[validos]
+
+  # Aplicar KMeans
+  set.seed(42)
+  modelo <- kmeans(rendas, centers = 2)
+
+  # Inicializar coluna com NA
+  df$grupo_renda <- NA_integer_
+
+  # Preencher apenas onde há valores válidos
+  df$grupo_renda[validos] <- modelo$cluster
+
+  # Imprimir resumo
+  cat("Centróides dos grupos:\n")
+  print(modelo$centers)
+  cat("\nTamanho do grupo 1:", sum(df$grupo_renda == 1, na.rm = TRUE),
+      "\nTamanho do grupo 2:", sum(df$grupo_renda == 2, na.rm = TRUE), "\n\n")
+
+  return(df)
 }
