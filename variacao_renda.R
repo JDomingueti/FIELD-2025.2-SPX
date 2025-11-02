@@ -162,7 +162,7 @@ for (filtro in filt) {
       } else if (grepl("19", filtro)) {
         if (grepl("D", filtro)) ocp <- substring(filtro, l-1, l-1)
         else ocp <- substring(filtro, l, l)
-        dados_classificados1 <- dados_classificados[as.numeric(dados_classificados$V4010) %/% 1000 %in% grupo_ocupacoes[[ocp]],]
+        dados_classificados <- dados_classificados[as.numeric(dados_classificados$V4010) %/% 1000 %in% grupo_ocupacoes[[ocp]],]
       }
       
       dados_variacao <- dados_classificados %>%
