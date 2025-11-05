@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import bisect
 
-pasta_base = Path("../FIELD-2025.2-SPX/PNAD_data/Pareamentos")
+pasta_base = Path("PNAD_data/Pareamentos")
 
 salarios_minimos = {"2012" : 622,
       "2013" : 678,
