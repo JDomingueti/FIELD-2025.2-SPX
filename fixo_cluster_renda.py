@@ -23,7 +23,7 @@ salarios_minimos = {"2012" : 622,
   }
 
 classes_rotulo = {5 : "A", 4: "B", 3 : "C", 2 : "D", 1 : "E"}
-classes = sorted(list(classes_rotulo.values()))
+classes = [0, 1, 3, 5, 15]
 
 def faixas(ano, trimestre):
            
@@ -37,17 +37,19 @@ def faixas(ano, trimestre):
         salario_min = salarios_minimos.get(str(ano))
         
     def classe(renda):
+        
         prop = renda/salario_min
         posi = bisect.bisect_left(classes, prop)
+        cla = classes_rotulo.get(posi)
         
-        return classes_rotulo.get(posi)
+        return cla
 
     validos = dados["VD4019"].notna()
     rendas = dados.loc[validos, "VD4019"].values.reshape(-1, 1)
 
     labels = [classe(r) for r in rendas]
     
-    dados["grupo_renda"] = np.nan
+    dados["grupo_renda"] = pd.Series(dtype="object")
 
     dados.loc[validos, "grupo_renda"] = labels
     
