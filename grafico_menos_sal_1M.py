@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-pasta_base = Path("../FIELD-2025.2-SPX/PNAD_data/Pareamentos")
+pasta_base = Path("PNAD_data/Pareamentos")
 
 percentual_salario_min = []
 tris = []
