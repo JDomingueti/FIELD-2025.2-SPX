@@ -57,3 +57,5 @@ def faixas(ano, trimestre):
 
     print("\nContagem de linhas por grupo de renda:")
     print(contagem)
+    
+    dados.to_parquet(file)
