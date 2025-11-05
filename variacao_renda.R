@@ -21,12 +21,18 @@ grupo_ocupacoes <- list(
   "5" = c(9)     # 9 OCUPAÇÕES ELEMENTARES
 )
 
+grupo_ocp <- list(
+  "1" = c(45, 48),  # Comércio
+  "2" = c(1, 2, 3, 41, 42, 43, 49, 50, 51, 52, 53, 55, 56, 58, 59, 60, 61, 62, 63, 64, 64, 66, 68, 69, 70, 71, 72, 73, 74, 75, 77, 78, 79, 80, 81, 82, 84, 85, 86, 87, 88, 90, 91, 92, 93, 94, 95, 96, 97, 99), # Serviços
+  "3" = c(5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35, 36, 37, 38, 39) # Indústria
+)
+
 # Escolha de filtro para calcular a mediana
 repeat {
   cat("Escolha o filtro:\n 0 = Sem filtro\n 1 = Trab de App\n 2 = Job Switcher\n 3 = Masculino\n 4 = Feminino\n 5 = Norte\n 6 = Nordeste\n 7 = Centro-Oeste\n 8 = Sul\n 9 = Sudeste
-  10 = Carteira Assinada\n 11 = Média \n 12 = Percentil 25\n 13 = Percentil 75\n 14 = 14-24 anos\n 15 = 25-54 anos\n 16 = 55+ anos\n 19 = Ocupações\n Caso queira adicionar deflator basta colocar o codigo seguido de 'D' (exemplo: 0D)\n")
+  10 = Carteira Assinada\n 11 = Média \n 12 = Percentil 25\n 13 = Percentil 75\n 14 = 14-24 anos\n 15 = 25-54 anos\n 16 = 55+ anos\n 19 = Ocupações\n 20 = Com. / Ind. / Serv.\n Caso queira adicionar deflator basta colocar o codigo seguido de 'D' (exemplo: 0D)\n")
   filtro <- readline(" -> ")
-  if (filtro %in% c("0", "1", "2", "3","4","5", "6", "7", "8", "9","10","11", "12", "13","14", "15", "16", "19", "0D", "1D", "2D", "3D", "4D", "5D", "6D", "7D", "8D", "9D", "10D", "11D", '12D', "13D", "14D", "15D", "16D", "19D")) break
+  if (filtro %in% c("0", "1", "2", "3","4","5", "6", "7", "8", "9","10","11", "12", "13","14", "15", "16", "17", "18", "19", "20", "0D", "1D", "2D", "3D", "4D", "5D", "6D", "7D", "8D", "9D", "10D", "11D", '12D', "13D", "14D", "15D", "16D", "17D", "18D", "19D", "20D")) break
   cat("FIltro Inválido")
 }
 paste0("Filtro escolhido:", filtro)
@@ -67,13 +73,15 @@ if (grepl("D", filtro)){
    cat("\nUsando renda nominal\n")
 }
 
-if (filtro != "19" && filtro != "19D") {
+if (!(filtro %in% c("19", "19D", "20", "20D"))) {
   filt <- c(filtro)
 } else {
-  if (grepl("D", filtro)){ 
-    filt <- c("191D", "192D", "193D", "194D", "195D")
+  if (grepl("D", filtro)){
+    if (grepl("19", filtro)) filt <- c("190D", "191D", "192D", "193D", "194D", "195D", "196D", "197D", "198D", "199D")
+    if (grepl("20", filtro)) filt <- c("201D", "202D", "203D")
   } else {
-    filt <- c("191", "192", "193", "194", "195")
+    if (grepl("19", filtro)) filt <- c("190", "191", "192", "193", "194", "195", "196", "197", "198", "199")
+    if (grepl("20", filtro)) filt <- c("201", "202", "203")
   }
   l <- nchar(filt[1])
 }
@@ -160,9 +168,13 @@ for (filtro in filt) {
         dados_classificados <- dados_classificados %>%
           filter(V2009 >= 55)
       } else if (grepl("19", filtro)) {
+        if (grepl("D", filtro)) ocp <- as.numeric(substring(filtro, l-1, l-1))
+        else ocp <- as.numeric(substring(filtro, l, l))
+        dados_classificados <- dados_classificados[as.numeric(dados_classificados$V4010) %/% 1000 == ocp,]
+      } else if (grepl("20", filtro)) {
         if (grepl("D", filtro)) ocp <- substring(filtro, l-1, l-1)
         else ocp <- substring(filtro, l, l)
-        dados_classificados <- dados_classificados[as.numeric(dados_classificados$V4010) %/% 1000 %in% grupo_ocupacoes[[ocp]],]
+        dados_classificados <- dados_classificados[as.numeric(dados_classificados$V4013) %/% 1000 %in% grupo_ocp[[ocp]],]
       }
       
       dados_variacao <- dados_classificados %>%
