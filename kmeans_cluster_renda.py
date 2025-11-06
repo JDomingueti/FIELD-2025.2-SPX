@@ -33,15 +33,24 @@ def cluster(ano, trimestre, k):
     labels = kmeans.labels_
     centros = kmeans.cluster_centers_.flatten()
     
-    if centros[0] > centros[1]:
-        labels = np.where(labels == 0, 1, 0)
-        
-    print(f"{ano}.{trimestre}\nCentróides dos grupos: {kmeans.cluster_centers_}\n")
+    centros = kmeans.cluster_centers_.flatten()
 
-    dados["grupo_renda"] = np.nan
-
-    dados.loc[validos, "grupo_renda"] = labels
+    ordem = np.argsort(centros)
+    centros_ordenados = centros[ordem]
     
-    print(f"Tamanho do grupo 0: {(dados['grupo_renda'] == 0).sum()}\nTamanho do grupo 1: {(dados['grupo_renda'] == 1).sum()}\n \n")
+    labels_ordenados = np.zeros_like(labels)
+    for novo_label, antigo_label in enumerate(ordem):
+        labels_ordenados[labels == antigo_label] = novo_label
+    
+    print(f"{ano}.{trimestre}")
+    for i, c in enumerate(centros_ordenados):
+        print(f"  Cluster {i}: centróide = {c:.2f}")
+    
+    dados["grupo_renda_kmeans"] = np.nan
+    dados.loc[validos, "grupo_renda_kmeans"] = labels_ordenados
+    
+    print("\nTamanho dos grupos:")
+    for i in range(k):
+        print(f"  Cluster {i}: {(dados['grupo_renda_kmeans'] == i).sum()}")
 
     dados.to_parquet(file)
