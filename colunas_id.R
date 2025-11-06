@@ -14,9 +14,9 @@ colunas_id_func <- function(periodos_analise, is_parquet) {
     ano_t4 <- periodos_analise$ano_fim; tri_t4 <- periodos_analise$tri_fim  # trimestre +4
 
     # Variáveis necessárias segundo o documento
-    vars_needed <- c("Ano", "Trimestre", "UF", "UPA", "V1008", "V1014", "V1027", "V1028", 
+    vars_needed <- c("Ano", "Trimestre", "UF", "UPA", "V1008", "V1014", "V1022", "V1023", "V1027", "V1028", 
                       "V2003", "V2005", "V2007", "V2008", "V20081", "V20082", "V2009", "V2010",
-                      "V3009A", "V4010", "V4012", "V4013", "V4029", "V4040" "V4041", "V4043",
+                      "VD3004", "V4010", "V4012", "V4013", "V4029", "V4040", "V4041", "V4043", #"V3009", "V3009A"
                       "VD4001", "VD4002", "VD4009", "VD4016", "VD4017", "VD4019", "VD4020", "VD4035")
                       
     #                          Colunas antigas

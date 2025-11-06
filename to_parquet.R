@@ -18,6 +18,8 @@ make_parquet <- function(year, trimester) {
   columns_to_keep = c("Ano", "Trimestre", "UF", "UPA",
                       "V1008",  # Número de seleção do domicílio
                       "V1014",  # Painel
+                      "V1022",  # Tipo de região (Urbana/Rural)
+                      "V1023",  # Tipo de região (RM/RIDE)
                       "V1027",  # Peso do domicílio e das pessoas (sem calibração)
                       "V1028",  # Peso do domicílio e das pessoas (com calibração)
                       "V2003",  # Número de ordem
@@ -28,7 +30,9 @@ make_parquet <- function(year, trimester) {
                       "V20082", # Ano de nascimento 
                       "V2009",  # Idade do morador na data de referência
                       "V2010",  # Cor ou raça
-                      "V3009A", # Qual foi o curso mais elevado que ... frequentou anteriormente?
+                      # "V3009",  # Qual foi o curso mais elevado que ... frequentou anteriormente? 2012-2015.3
+                      # "V3009A", # Qual foi o curso mais elevado que ... frequentou anteriormente? 2015.4-Pres.
+                      "VD3004", # Nível de instrução mais elevado alcançado padronizado para o Ensino fundamental 
                       "V4010",  # Código da ocupação (cargo ou função) (COD) -> Ver  "Composição dos Grupamentos Ocupacionais" e "Classificação de Ocupações para as Pesquisas Domiciliares – COD" em ANEXO de Notas Metodológicas
                       "V4012",  # Nesse trabalho, ... era: 
                       "V4013",  # Código da principal atividade desse negócio/empresa (CNAE)
