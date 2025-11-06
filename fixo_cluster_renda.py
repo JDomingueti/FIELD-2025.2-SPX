@@ -59,3 +59,14 @@ def faixas(ano, trimestre):
     print(contagem)
     
     dados.to_parquet(file)
+
+anos = range(2012, 2025)
+tri = range(1, 5)
+
+for ano in anos:
+    for trimestre in tri:
+        if ano == 2024 and trimestre == 3:
+            break
+        
+        faixas(ano, trimestre)
+        
