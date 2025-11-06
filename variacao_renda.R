@@ -61,24 +61,29 @@ calcular_variacoes <- function(filtro) {
   if (grepl("D", filtro)){
     coluna_renda <- "VD4019_deflat"
     cat("\nUsando renda deflacionada\n")
+    is_deflated = TRUE
   } else {
      coluna_renda <- "VD4019"
      cat("\nUsando renda nominal\n")
+     is_deflated = FALSE
   }
   
   if (!(filtro %in% c("17", "17D", "18", "18D", "19", "19D", "20", "20D"))) {
     filt <- c(filtro)
   } else {
-    if (grepl("D", filtro)){
+    if (is_deflated){
       if (grepl("17", filtro)) filt <- c("171D", "172D", "173D", "174D", "175D")
       else if (grepl("18", filtro)) filt <- c("181D", "182D", "183D", "184D", "185D", "186D", "187D")
       else if (grepl("19", filtro)) filt <- c("190D", "191D", "192D", "193D", "194D", "195D", "196D", "197D", "198D", "199D")
       else if (grepl("20", filtro)) filt <- c("201D", "202D", "203D")
+      else if (grepl("21", filtro)) filt <- c("21AD", "21BD", "21CD", "21DD", "21DD", "21ED")
     } else {
       if (grepl("17", filtro)) filt <- c("171", "172", "173", "174", "175")
       else if (grepl("18", filtro)) filt <- c("181", "182", "183", "184", "185", "186", "187")
       else if (grepl("19", filtro)) filt <- c("190", "191", "192", "193", "194", "195", "196", "197", "198", "199")
       else if (grepl("20", filtro)) filt <- c("201", "202", "203")
+      else if (grepl("21", filtro)) filt <- c("21A", "21B", "21C", "21D", "21D", "21E")
+
     }
     l <- nchar(filt[1])
   }
@@ -165,27 +170,33 @@ calcular_variacoes <- function(filtro) {
           dados_classificados <- dados_classificados %>%
             filter(V2009 >= 55)
         } else if (grepl("17", filtro)) {  # Cor ou raça
-          if (grepl("D", filtro)) rac <- as.numeric(substring(filtro, l-1, l-1))
+          if (is_deflated) rac <- as.numeric(substring(filtro, l-1, l-1))
           else rac <- as.numeric(substring(filtro, l, l)) 
           #cat("Código atual de raça:", rac, "\n")
           dados_classificados <- dados_classificados[as.numeric(dados_classificados$V2010) == rac,]
         } else if (grepl("18", filtro)) {  # Nível educacional
-          if (grepl("D", filtro)) ed <- as.numeric(substring(filtro, l-1, l-1))
+          if (is_deflated) ed <- as.numeric(substring(filtro, l-1, l-1))
           else ed <- as.numeric(substring(filtro, l, l)) 
           #cat("Código atual de educação:", ed, "\n")
           dados_classificados <- dados_classificados[as.numeric(dados_classificados$VD3004) == ed,]
         } else if (grepl("19", filtro)) {  # Ocupações separadas
-          if (grepl("D", filtro)) ocp <- as.numeric(substring(filtro, l-1, l-1))
+          if (is_deflated) ocp <- as.numeric(substring(filtro, l-1, l-1))
           else ocp <- as.numeric(substring(filtro, l, l))
           #cat("Codigo atual de ocupação:", ocp, "\n")
           # Divide-se o código de ocupação para analisar os "Grandes Grupos"
           dados_classificados <- dados_classificados[as.numeric(dados_classificados$V4010) %/% 1000 == ocp,]
         } else if (grepl("20", filtro)) {  # Divisões em Serviço, comércio e Industria
-          if (grepl("D", filtro)) ocp <- substring(filtro, l-1, l-1)
+          if (is_deflated) ocp <- substring(filtro, l-1, l-1)
           else ocp <- substring(filtro, l, l)
           #cat("Código atual de divisão:", ocp, "\n")
           dados_classificados <- dados_classificados[as.numeric(dados_classificados$V4013) %/% 1000 %in% grupo_ocp[[ocp]],]
-        }
+        
+        } else if (grepl("21", filtro)) { # Classes de Renda
+          if (is_deflated) classe <- substring(filtro, l-1, l-1)
+          else classe <- substring(filtro, l, l)
+          dados_classificados <- dados_classificados %>%
+            filter(grupo_renda == classe)
+        } 
         
         dados_variacao <- dados_classificados %>%
           mutate(periodo_label = paste0(Ano, "_", Trimestre)) %>%
@@ -291,9 +302,9 @@ if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
   # Escolha de filtro para calcular a mediana
   repeat {
     cat("Escolha o filtro:\n 0 = Sem filtro\n 1 = Trab de App\n 2 = Job Switcher\n 3 = Masculino\n 4 = Feminino\n 5 = Norte\n 6 = Nordeste\n 7 = Centro-Oeste\n 8 = Sul\n 9 = Sudeste\n ")
-    cat("10 = Carteira Assinada\n 11 = Média \n 12 = Percentil 25\n 13 = Percentil 75\n 14 = 14-24 anos\n 15 = 25-54 anos\n 16 = 55+ anos\n 17 = Raças\n 18 = Educação\n 19 = Ocupações\n 20 = Com. / Ind. / Serv.\n Caso queira adicionar deflator basta colocar o codigo seguido de 'D' (exemplo: 0D)\n")
+    cat("10 = Carteira Assinada\n 11 = Média \n 12 = Percentil 25\n 13 = Percentil 75\n 14 = 14-24 anos\n 15 = 25-54 anos\n 16 = 55+ anos\n 17 = Raças\n 18 = Educação\n 19 = Ocupações\n 20 = Com. / Ind. / Serv.\n 21 = Classes de Renda\n Caso queira adicionar deflator basta colocar o codigo seguido de 'D' (exemplo: 0D)\n")
     filtro <- readline(" -> ")
-    if (filtro %in% c("0", "1", "2", "3","4","5", "6", "7", "8", "9", "10","11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "0D", "1D", "2D", "3D", "4D", "5D", "6D", "7D", "8D", "9D", "10D", "11D", '12D', "13D", "14D", "15D", "16D", "17D", "18D", "19D", "20D")) break
+    if (filtro %in% c("0", "1", "2", "3","4","5", "6", "7", "8", "9", "10","11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "0D", "1D", "2D", "3D", "4D", "5D", "6D", "7D", "8D", "9D", "10D", "11D", '12D', "13D", "14D", "15D", "16D", "17D", "18D", "19D", "20D", "21D")) break
     cat("FIltro Inválido")
   }
   calcular_variacoes(filtro)

@@ -49,7 +49,12 @@ grupos_suffix = {
     "Militares":"_190",
     "Comércios": "_201",
     "Serviços": "_202",
-    "Indústrias": "_203"
+    "Indústrias": "_203",
+    "Classe A": "_21A",
+    "Classe B": "_21B",
+    "Classe C": "_21C",
+    "Classe D": "_21D",
+    "Classe E": "_21E"
 }
 
 # Mapeia a opção do deflator para o sufixo
@@ -185,7 +190,7 @@ def create_combined_chart(df, group_column=None):
 st.title("Mediana da Variação da Renda")
 
 # Cria as abas
-tab_base, tab_app, tab_switcher, tab_sexo, tab_regioes, tab_carteira, tab_quartis, tab_idade, tab_rac, tab_edu, tab_ocp, tab_div = st.tabs([
+tab_base, tab_app, tab_switcher, tab_sexo, tab_regioes, tab_carteira, tab_quartis, tab_idade, tab_rac, tab_edu, tab_ocp, tab_div, tab_classes = st.tabs([
     "Base", 
     "Trabalhador de App", 
     "Job Switcher", 
@@ -197,7 +202,8 @@ tab_base, tab_app, tab_switcher, tab_sexo, tab_regioes, tab_carteira, tab_quarti
     "Cor ou raça",
     "Nível educacional",
     "Ocupações",
-    "Divisões ocp."
+    "Divisões ocp.",
+    "Classes de Renda"
 ])
 
 # --- Aba 1: Base (Geral) ---
@@ -432,6 +438,30 @@ with tab_div:
     df_ind['Grupo'] = "Indústrias"
     
     df_div_combined = pd.concat([df_base, df_com, df_ser, df_ind])
+
+    if not df_div_combined.empty:
+        # Chama a mesma função, mas agora passando 'group_column'
+        chart = create_combined_chart(df_div_combined, group_column="Grupo")
+        st.altair_chart(chart, use_container_width=True)
+
+with tab_classes:
+    st.header("Classes de Renda")
+
+    df_base = load_data(grupos_suffix['Base'] + codigo_deflator)
+    df_a = load_data(grupos_suffix["Classe A"] + codigo_deflator)
+    df_b = load_data(grupos_suffix["Classe B"] + codigo_deflator)
+    df_c = load_data(grupos_suffix["Classe C"] + codigo_deflator)
+    df_d = load_data(grupos_suffix["Classe D"] + codigo_deflator)
+    df_e = load_data(grupos_suffix["Classe E"] + codigo_deflator)
+
+    df_base['Grupo'] = "Base"
+    df_a["Grupo"] = "Classe A"
+    df_b["Grupo"] = "Classe B"
+    df_c["Grupo"] = "Classe C"
+    df_d["Grupo"] = "Classe D"
+    df_e["Grupo"] = "Classe E"
+
+    df_classe_combined = pd.concat([df_base, df_a, df_b, df_c, df_d, df_e])
 
     if not df_div_combined.empty:
         # Chama a mesma função, mas agora passando 'group_column'
