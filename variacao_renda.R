@@ -41,23 +41,6 @@ calcular_variacoes <- function(filtro) {
   anos <- 2012:2025
   trimestres <- 1:4
   
-  # Data frame para armazenar todos os resultados
-  resultados <- data.frame(
-    ano_final = integer(),
-    trimestre = integer(),
-    mediana_variacao = numeric(),
-    obs = integer(),
-    stringsAsFactors = FALSE
-  )
-  
-  estatisticas_var_zero <- data.frame(
-    ano_final = integer(),
-    trimestre = integer(),
-    percentual_zero = numeric(),
-    percentual_menor_igual_zero = numeric(),
-    stringsAsFactors = FALSE
-  )
-  
   if (grepl("D", filtro)){
     coluna_renda <- "VD4019_deflat"
     cat("\nUsando renda deflacionada\n")
@@ -68,7 +51,7 @@ calcular_variacoes <- function(filtro) {
      is_deflated = FALSE
   }
   
-  if (!(filtro %in% c("17", "17D", "18", "18D", "19", "19D", "20", "20D"))) {
+  if (!(filtro %in% c("17", "17D", "18", "18D", "19", "19D", "20", "20D", "21", "21D"))) {
     filt <- c(filtro)
   } else {
     if (is_deflated){
@@ -96,6 +79,23 @@ calcular_variacoes <- function(filtro) {
     
     # Limpa o arquivo antes de começar
     cat("", file = arquivo_saida_texto)
+    
+    estatisticas_var_zero <- data.frame(
+      ano_final = integer(),
+      trimestre = integer(),
+      percentual_zero = numeric(),
+      percentual_menor_igual_zero = numeric(),
+      stringsAsFactors = FALSE
+    )
+    
+    # Data frame para armazenar todos os resultados
+    resultados <- data.frame(
+      ano_final = integer(),
+      trimestre = integer(),
+      mediana_variacao = numeric(),
+      obs = integer(),
+      stringsAsFactors = FALSE
+    )
     
     for (ano in anos) {
       for (tri in trimestres) {
@@ -294,6 +294,7 @@ calcular_variacoes <- function(filtro) {
     write.csv(resultados, here(pasta_saida, paste0("medianas_variacao_renda_", filtro, ".csv")), row.names = FALSE)
   
     cat("\n Loop concluído! Resultados salvos em:", arquivo_saida_texto, "\n")
+    
   }
 }
 
