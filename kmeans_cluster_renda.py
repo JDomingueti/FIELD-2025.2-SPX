@@ -20,16 +20,16 @@ def otimizar_clusters(X, k_min=2, k_max=10, random_state=42, plot=True):
 
     return melhor_k
 
-def cluster(ano, trimestre):
+def cluster(ano, trimestre, k):
            
     file = pasta_base / f"pessoas_{ano}{trimestre}_{ano+1}{trimestre}_classificado.parquet"
 
     dados = pd.read_parquet(file)
 
-    validos = dados["VD4019"].notna()
-    rendas = dados.loc[validos, "VD4019"].values.reshape(-1, 1)
+    validos = dados["log_renda"].notna()
+    rendas = dados.loc[validos, "log_renda"].values.reshape(-1, 1)
 
-    kmeans = KMeans(n_clusters=2, random_state=42).fit(rendas)
+    kmeans = KMeans(n_clusters=k, random_state=42).fit(rendas)
     labels = kmeans.labels_
     centros = kmeans.cluster_centers_.flatten()
     
