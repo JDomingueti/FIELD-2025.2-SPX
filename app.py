@@ -25,6 +25,18 @@ grupos_suffix = {
     "14-24 anos": "_14",
     "25-54 anos": "_15",
     "55+ anos": "_16",
+    "Branca": "_171",
+    "Preta": "_172",
+    "Amarela": "_173",
+    "Parda": "_174",
+    "Indígena": "_175",
+    "Sem instrução": "_181",
+    "Fundamental incompleto": "_182",
+    "Fundamental completo": "_183",
+    "Médio incompleto": "_184",
+    "Médio completo": "_185",
+    "Superior incompleto": "_186",
+    "Superior completo": "_187",
     "Diretores e gerentes":"_191",
     "Prof. das ciências e intelectuais":"_192",
     "Prof. de nível médio":"_193",
@@ -173,7 +185,7 @@ def create_combined_chart(df, group_column=None):
 st.title("Mediana da Variação da Renda")
 
 # Cria as abas
-tab_base, tab_app, tab_switcher, tab_sexo, tab_regioes, tab_carteira, tab_quartis, tab_idade, tab_ocp, tab_div = st.tabs([
+tab_base, tab_app, tab_switcher, tab_sexo, tab_regioes, tab_carteira, tab_quartis, tab_idade, tab_rac, tab_edu, tab_ocp, tab_div = st.tabs([
     "Base", 
     "Trabalhador de App", 
     "Job Switcher", 
@@ -182,6 +194,8 @@ tab_base, tab_app, tab_switcher, tab_sexo, tab_regioes, tab_carteira, tab_quarti
     "Carteira Assinada",
     "Quartis",
     "Faixa Etária",
+    "Cor ou raça",
+    "Nível educacional",
     "Ocupações",
     "Divisões ocp."
 ])
@@ -318,6 +332,58 @@ with tab_idade:
         chart = create_combined_chart(df_idade_combined, group_column="Grupo")
         st.altair_chart(chart, use_container_width=True)
 
+with tab_rac:
+    st.header("Cor ou Raça")
+    
+    df_base = load_data(grupos_suffix['Base'] + codigo_deflator)
+    df_bra = load_data(grupos_suffix['Branca'] + codigo_deflator)
+    df_pre = load_data(grupos_suffix['Preta'] + codigo_deflator)
+    df_ama = load_data(grupos_suffix['Amarela'] + codigo_deflator)
+    df_par = load_data(grupos_suffix['Parda'] + codigo_deflator)
+    df_ind = load_data(grupos_suffix['Indígena'] + codigo_deflator)
+
+    df_base['Grupo'] = "Base"
+    df_bra['Grupo'] = "Branca"
+    df_pre['Grupo'] = "Preta"
+    df_ama['Grupo'] = "Amarela"
+    df_par['Grupo'] = "Parda"
+    df_ind['Grupo'] = "Indígena"
+    
+    df_raca_combined = pd.concat([df_base, df_bra, df_pre, df_ama, df_par, df_ind])
+
+    if not df_raca_combined.empty:
+        # Chama a mesma função, mas agora passando 'group_column'
+        chart = create_combined_chart(df_raca_combined, group_column="Grupo")
+        st.altair_chart(chart, use_container_width=True)
+        
+with tab_edu:
+    st.header("Nível educacional")
+    
+    df_base = load_data(grupos_suffix["Base"] + codigo_deflator)
+    df_s_inst = load_data(grupos_suffix["Sem instrução"] + codigo_deflator)
+    df_fund_i = load_data(grupos_suffix["Fundamental incompleto"] + codigo_deflator)
+    df_fund_c = load_data(grupos_suffix["Fundamental completo"] + codigo_deflator)
+    df_med_i = load_data(grupos_suffix["Médio incompleto"] + codigo_deflator)
+    df_med_c = load_data(grupos_suffix["Médio completo"] + codigo_deflator)
+    df_sup_i = load_data(grupos_suffix["Superior incompleto"] + codigo_deflator)
+    df_sup_c = load_data(grupos_suffix["Superior completo"] + codigo_deflator)
+    
+    df_base['Grupo'] = "Base"
+    df_s_inst['Grupo'] = "Sem instrução"
+    df_fund_i['Grupo'] = "Fundamental incompleto"
+    df_fund_c['Grupo'] = "Fundamental completo"
+    df_med_i['Grupo'] = "Médio incompleto"
+    df_med_c['Grupo'] = "Médio completo"
+    df_sup_i['Grupo'] = "Superior incompleto"
+    df_sup_c['Grupo'] = "Superior completo"
+    
+    df_educ_combined = pd.concat([df_base, df_s_inst, df_fund_i, df_fund_c, df_med_i, df_med_c, df_sup_i, df_sup_c])
+
+    if not df_educ_combined.empty:
+        # Chama a mesma função, mas agora passando 'group_column'
+        chart = create_combined_chart(df_educ_combined, group_column="Grupo")
+        st.altair_chart(chart, use_container_width=True)
+        
 with tab_ocp:
     st.header("Grupos de ocupações")
     
@@ -365,11 +431,11 @@ with tab_div:
     df_ser['Grupo'] = "Serviços"
     df_ind['Grupo'] = "Indústrias"
     
-    df_ocp_combined = pd.concat([df_base, df_com, df_ser, df_ind])
+    df_div_combined = pd.concat([df_base, df_com, df_ser, df_ind])
 
-    if not df_ocp_combined.empty:
+    if not df_div_combined.empty:
         # Chama a mesma função, mas agora passando 'group_column'
-        chart = create_combined_chart(df_ocp_combined, group_column="Grupo")
+        chart = create_combined_chart(df_div_combined, group_column="Grupo")
         st.altair_chart(chart, use_container_width=True)
 
 st.caption("Fonte: PNAD Contínua — Dados de 2012 a 2025")
