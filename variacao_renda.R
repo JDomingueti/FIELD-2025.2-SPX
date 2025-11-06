@@ -68,7 +68,7 @@ calcular_variacoes <- function(filtro) {
      is_deflated = FALSE
   }
   
-  if (!(filtro %in% c("17", "17D", "18", "18D", "19", "19D", "20", "20D"))) {
+  if (!(filtro %in% c("17", "17D", "18", "18D", "19", "19D", "20", "20D", "21", "21D"))) {
     filt <- c(filtro)
   } else {
     if (is_deflated){
