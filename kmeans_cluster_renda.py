@@ -3,11 +3,10 @@ from sklearn.metrics import silhouette_score
 from pathlib import Path
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 
 pasta_base = Path("PNAD_data/Pareamentos")
 
-def otimizar_clusters(X, k_min=2, k_max=15, random_state=42, plot=True):
+def otimizar_clusters(X, k_min=2, k_max=10, random_state=42, plot=True):
 
     scores = {}
     for k in range(k_min, k_max+1):
@@ -19,15 +18,7 @@ def otimizar_clusters(X, k_min=2, k_max=15, random_state=42, plot=True):
 
     melhor_k = max(scores, key=scores.get)
 
-    if plot:
-        plt.figure(figsize=(7,4))
-        plt.plot(list(scores.keys()), list(scores.values()), marker='o')
-        plt.xlabel("Número de clusters (k)")
-        plt.ylabel("Score")
-        plt.grid(True)
-        plt.show()
-
-    return melhor_k, scores
+    return melhor_k
 
 def cluster(ano, trimestre):
            
@@ -54,14 +45,3 @@ def cluster(ano, trimestre):
     print(f"Tamanho do grupo 0: {(dados['grupo_renda'] == 0).sum()}\nTamanho do grupo 1: {(dados['grupo_renda'] == 1).sum()}\n \n")
 
     dados.to_parquet(file)
-
-anos = range(2012, 2025)
-tri = range(1, 5)
-
-for ano in anos:
-    for trimestre in tri:
-        file = pasta_base / f"pessoas_{ano}{trimestre}_{ano+1}{trimestre}_classificado.parquet"
-
-        dados = pd.read_parquet(file)
-
-        print(otimizar_clusters(dados))
