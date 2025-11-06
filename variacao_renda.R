@@ -5,7 +5,7 @@ library(arrow)
 library(here)
 library(scales)
 
-regioes <- c(
+regioes <- list(
   c(11, 12, 13, 14, 15, 16, 17), #Norte
   c(21, 22, 23, 24, 25, 26, 27, 28, 29), #Nordeste
   c(31, 32, 33, 34, 35), #Sudeste
@@ -138,23 +138,23 @@ for (filtro in filt) {
 
       } else if (filtro == "5" || filtro == "5D"){ 
         dados_classificados <- dados_classificados %>%
-          filter(UF %in% regioes[1])
+          filter(UF %in% regioes[[1]])
 
       } else if (filtro == "6" || filtro == "6D"){
         dados_classificados <- dados_classificados %>%
-          filter(UF %in% regioes[2])
+          filter(UF %in% regioes[[2]])
 
       } else if (filtro == '7' || filtro == '7D'){
         dados_classificados <- dados_classificados %>%
-          filter(UF %in% regioes[3])
+          filter(UF %in% regioes[[3]])
 
       } else if (filtro == '8' || filtro == '8D'){
         dados_classificados <- dados_classificados %>%
-          filter(UF %in% regioes[4])
+          filter(UF %in% regioes[[4]])
 
       } else if (filtro == '9' || filtro == '9D'){
         dados_classificados <- dados_classificados %>%
-          filter(UF %in% regioes[5])
+          filter(UF %in% regioes[[5]])
       } else if (filtro == '10' || filtro == '10D'){ # carteira assinada
         dados_classificados <- dados_classificados %>%
           filter(V4029 == 1)
