@@ -463,9 +463,9 @@ with tab_classes:
 
     df_classe_combined = pd.concat([df_base, df_a, df_b, df_c, df_d, df_e])
 
-    if not df_div_combined.empty:
+    if not df_classe_combined.empty:
         # Chama a mesma função, mas agora passando 'group_column'
-        chart = create_combined_chart(df_div_combined, group_column="Grupo")
+        chart = create_combined_chart(df_classe_combined, group_column="Grupo")
         st.altair_chart(chart, use_container_width=True)
 
 st.caption("Fonte: PNAD Contínua — Dados de 2012 a 2025")
