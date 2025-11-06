@@ -66,7 +66,7 @@ calcular_variacoes <- function(filtro) {
      cat("\nUsando renda nominal\n")
   }
   
-  if (!(filtro %in% c("17", "17D", "19", "19D", "20", "20D"))) {
+  if (!(filtro %in% c("17", "17D", "18", "18D", "19", "19D", "20", "20D"))) {
     filt <- c(filtro)
   } else {
     if (grepl("D", filtro)){
