@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-pasta_base = Path("../FIELD-2025.2-SPX/PNAD_data/Pareamentos")
+pasta_base = Path("PNAD_data/Pareamentos")
 
 def cluster(ano, trimestre):
            
