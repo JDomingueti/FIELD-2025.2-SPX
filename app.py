@@ -54,13 +54,15 @@ grupos_suffix = {
     "Classe B": "_21B",
     "Classe C": "_21C",
     "Classe D": "_21D",
-    "Classe E": "_21E"
+    "Classe E": "_21E",
+    "Cluster 0": "_220",
+    "Cluster 1": "_221"
 }
 
 # Mapeia a opção do deflator para o sufixo
 deflator_suffix = {
-    "Não": "",
-    "Sim": "D"
+    "Sim": "D",
+    "Não": ""
 }
 
 # Caminho base para os arquivos CSV
@@ -82,31 +84,61 @@ def load_data(suffix):
 
 st.sidebar.title("Opções de Filtro")
 
+st.sidebar.title("Opções de Filtro")
+
 # Filtro 1: Deflator
 deflator_selecionado = st.sidebar.radio(
     "Deflator Aplicado",
     options=list(deflator_suffix.keys()),
     index=0 
 )
-# Obtém o sufixo do deflator (ex: "" ou "D")
+# obtem o sufixo D
 codigo_deflator = deflator_suffix[deflator_selecionado]
 
 # Filtro 2: Range de Anos
-# Carregamos o arquivo 'Base' para obter o range min/max dos anos
 df_base_temp = load_data(grupos_suffix["Base"] + codigo_deflator)
 
 if not df_base_temp.empty:
+    # Lógica para o Filtro de Anos
     years = sorted(df_base_temp["ano_final"].unique())
     min_yr, max_yr = int(min(years)), int(max(years))
-else:
-    min_yr, max_yr = 2012, 2025 # Fallback caso o arquivo não seja encontrado
+    
+    min_y_val = df_base_temp['mediana_variacao'].min()
+    max_y_val = df_base_temp['mediana_variacao'].max()
+    
+    # Adiciona um buffer de 20% no slider para dar espaço (10% para cima, 10% para baixo)
+    y_buffer = (max_y_val - min_y_val) * 0.1
+    
+    # Converte para porcentagem para o slider
+    slider_min_y = (min_y_val - y_buffer) * 100
+    slider_max_y = (max_y_val + y_buffer) * 100
+    default_min_y = min_y_val * 100
+    default_max_y = max_y_val * 100
 
+else:
+    # Fallback caso o arquivo não seja encontrado
+    min_yr, max_yr = 2012, 2025
+    slider_min_y, slider_max_y = -20.0, 30.0
+    default_min_y, default_max_y = -10.0, 20.0
+
+# Cria o Slider de Anos
 year_range = st.sidebar.slider(
     "Filtrar Anos",
     min_value=min_yr,
     max_value=max_yr,
     value=(min_yr, max_yr)
 )
+
+y_range_pct = st.sidebar.slider(
+    "Filtrar Eixo Y (Variação %)",
+    min_value=slider_min_y,
+    max_value=slider_max_y,
+    value=(default_min_y, default_max_y), # Padrão é o min/max real dos dados
+    step=0.1,
+    format="%.1f%%"  # Formata o slider para mostrar como porcentagem
+)
+# Converte a seleção do slider (porcentagem) de volta para decimal
+y_range_values = (y_range_pct[0] / 100.0, y_range_pct[1] / 100.0)
 
 def create_combined_chart(df, group_column=None):
     """
@@ -159,7 +191,11 @@ def create_combined_chart(df, group_column=None):
 
     # Gráfico 1: Variação da Renda
     chart_renda = base.mark_line().encode(
-        y=alt.Y("mediana_variacao:Q", title="Variação Mediana da Renda", axis=alt.Axis(format=".1%")),
+        y=alt.Y("mediana_variacao:Q", 
+                title="Variação Mediana da Renda", 
+                axis=alt.Axis(format=".1%"),
+                scale=alt.Scale(domain=[y_range_values[0], y_range_values[1]], clamp=True)
+                ),
         color=color_encoding
     ).properties(
         height=400
@@ -209,31 +245,56 @@ tab_base, tab_app, tab_switcher, tab_sexo, tab_regioes, tab_carteira, tab_quarti
 # --- Aba 1: Base (Geral) ---
 with tab_base:
     st.header("Base")
-    suffix = grupos_suffix["Base"] + codigo_deflator
-    df_data = load_data(suffix)
     
-    if not df_data.empty:
-        chart = create_combined_chart(df_data)
+    df_base = load_data(grupos_suffix["Base"] + codigo_deflator)
+    
+    # Adiciona uma coluna 'Grupo' para identificar cada DataFrame
+    df_base['Grupo'] = 'Base'
+    
+    # Combina os três DataFrames em um só
+    df_base_combined = pd.concat([df_base])
+    
+    if not df_base_combined.empty:
+        # Chama a mesma função, mas agora passando 'group_column'
+        chart = create_combined_chart(df_base_combined, group_column="Grupo")
         st.altair_chart(chart, use_container_width=True)
 
 # --- Aba 2: Trabalhador de App ---
 with tab_app:
     st.header("Trabalhador de App")
-    suffix = grupos_suffix["Trabalhador de App"] + codigo_deflator
-    df_data = load_data(suffix)
     
-    if not df_data.empty:
-        chart = create_combined_chart(df_data)
+    df_base = load_data(grupos_suffix["Base"] + codigo_deflator)
+    df_trab_app = load_data(grupos_suffix["Trabalhador de App"] + codigo_deflator)
+    
+    # Adiciona uma coluna 'Grupo' para identificar cada DataFrame
+    df_base['Grupo'] = 'Base'
+    df_trab_app["Grupo"] = "Trabalhador de App"
+    
+    # Combina os três DataFrames em um só
+    df_trab_app_combined = pd.concat([df_base, df_trab_app])
+    
+    if not df_trab_app_combined.empty:
+        # Chama a mesma função, mas agora passando 'group_column'
+        chart = create_combined_chart(df_trab_app_combined, group_column="Grupo")
         st.altair_chart(chart, use_container_width=True)
 
 # --- Aba 3: Job Switcher ---
 with tab_switcher:
     st.header("Job Switcher")
-    suffix = grupos_suffix["Job Switcher"] + codigo_deflator
-    df_data = load_data(suffix)
     
-    if not df_data.empty:
-        chart = create_combined_chart(df_data)
+    df_base = load_data(grupos_suffix["Base"] + codigo_deflator)
+    df_job_switcher = load_data(grupos_suffix["Job Switcher"] + codigo_deflator)
+    
+    # Adiciona uma coluna 'Grupo' para identificar cada DataFrame
+    df_base['Grupo'] = 'Base'
+    df_job_switcher["Grupo"] = "Job Switcher"
+    
+    # Combina os três DataFrames em um só
+    df_job_switcher_combined = pd.concat([df_base, df_job_switcher])
+    
+    if not df_job_switcher_combined.empty:
+        # Chama a mesma função, mas agora passando 'group_column'
+        chart = create_combined_chart(df_job_switcher_combined, group_column="Grupo")
         st.altair_chart(chart, use_container_width=True)
 
 # --- Aba 4: Comparação por Sexo ---
