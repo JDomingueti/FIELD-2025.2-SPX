@@ -26,7 +26,7 @@ def cluster(ano, trimestre, k):
 
     dados = pd.read_parquet(file)
 
-    validos = dados["log_renda"].notna() & (dados["classe_individuo"] >= 3)
+    validos = dados["log_renda"].notna() & (dados["classe_individuo"] <= 3)
     rendas = dados.loc[validos, "log_renda"].values.reshape(-1, 1)
 
     kmeans = KMeans(n_clusters=k, random_state=42).fit(rendas)
