@@ -60,14 +60,14 @@ calcular_variacoes <- function(filtro) {
       else if (grepl("19", filtro)) filt <- c("190D", "191D", "192D", "193D", "194D", "195D", "196D", "197D", "198D", "199D")
       else if (grepl("20", filtro)) filt <- c("201D", "202D", "203D")
       else if (grepl("21", filtro)) filt <- c("21AD", "21BD", "21CD", "21DD", "21ED")
-      else if (grepl("22", filtro)) filt <- c("220D", "221D")
+      else if (grepl("22", filtro)) filt <- c("22_0D", "22_1D")
     } else {
       if (grepl("17", filtro)) filt <- c("171", "172", "173", "174", "175")
       else if (grepl("18", filtro)) filt <- c("181", "182", "183", "184", "185", "186", "187")
       else if (grepl("19", filtro)) filt <- c("190", "191", "192", "193", "194", "195", "196", "197", "198", "199")
       else if (grepl("20", filtro)) filt <- c("201", "202", "203")
       else if (grepl("21", filtro)) filt <- c("21A", "21B", "21C", "21D", "21D", "21E")
-      else if (grepl("22", filtro)) filt <- c("220", "221")
+      else if (grepl("22", filtro)) filt <- c("22_0", "22_1")
 
     }
     l <- nchar(filt[1])

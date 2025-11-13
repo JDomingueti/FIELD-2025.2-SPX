@@ -57,8 +57,8 @@ grupos_suffix = {
     "Classe C": "_21C",
     "Classe D": "_21D",
     "Classe E": "_21E",
-    "Cluster 0": "_220",
-    "Cluster 1": "_221"
+    "Cluster 0": "_22_0",
+    "Cluster 1": "_22_1"
 }
 
 # Mapeia a opção do deflator para o sufixo
@@ -153,7 +153,7 @@ if not df_base_temp.empty:
     max_y_val = df_base_temp['mediana_variacao'].max()
     
     # Adiciona um buffer de 20% no slider para dar espaço (10% para cima, 10% para baixo)
-    y_buffer = (max_y_val - min_y_val) * 0.1
+    y_buffer = (max_y_val - min_y_val) * 2.5
     
     # Converte para porcentagem para o slider
     slider_min_y = (min_y_val - y_buffer) * 100
