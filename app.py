@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
-import matplotlib.pyplot as plt            
+import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
 st.set_page_config(page_title="Wage Tracker", layout="wide")
@@ -69,7 +69,7 @@ deflator_suffix = {
 
 # Caminho base para os arquivos CSV
 # Ajuste este caminho se seus arquivos CSV estiverem em outro lugar
-arquivo_base = "./dados_medianas_var" 
+arquivo_base = "./dados_medianas_var"
 
 @st.cache_data
 def load_data(suffix):
@@ -86,7 +86,7 @@ def load_data(suffix):
 def load_data_variacao_nula(base_path):
     """Carrega os dados para o gráfico de variação nula."""
     # Assume que o arquivo está na mesma pasta base dos outros
-    file_path = f"{base_path}/estatisticas_variacao_nula.csv" 
+    file_path = f"{base_path}/estatisticas_variacao_nula.csv"
     try:
         df = pd.read_csv(file_path)
         # Cria a coluna 'ano_tri' aqui para ficar em cache
@@ -121,8 +121,8 @@ def load_data_classes_pareamento(base_path):
     df_long = df.melt(
         id_vars=id_vars,
         value_vars=value_vars,
-        var_name='Classe',      
-        value_name='Percentual' 
+        var_name='Classe',
+        value_name='Percentual'
     )
     
     return df_long
@@ -136,7 +136,7 @@ st.sidebar.title("Opções de Filtro")
 deflator_selecionado = st.sidebar.radio(
     "Deflator Aplicado",
     options=list(deflator_suffix.keys()),
-    index=0 
+    index=0
 )
 # obtem o sufixo D
 codigo_deflator = deflator_suffix[deflator_selecionado]
@@ -186,9 +186,12 @@ y_range_pct = st.sidebar.slider(
 # Converte a seleção do slider (porcentagem) de volta para decimal
 y_range_values = (y_range_pct[0] / 100.0, y_range_pct[1] / 100.0)
 
+# --- Variável global para a cor da linha Base ---
+BASE_COLOR = '#606060' # Cinza escuro
+
 def create_combined_chart(df, group_column=None):
     """
-    Cria um grafioc combinado (Renda + Observações) para o DataFrame fornecido.
+    Cria um gráfico combinado (Renda + Observações) para o DataFrame fornecido.
     Filtra os dados com base no year_range global.
     Se 'group_column' for fornecido, cria um grafico de múltiplas linhas.
     """
@@ -206,43 +209,75 @@ def create_combined_chart(df, group_column=None):
     )
 
     # --- Define as configurações de cor e tooltip ---
-    color_encoding = alt.Color()
     tooltip_list = [
-        'periodo', 
-        alt.Tooltip('mediana_variacao', format='.1%'), 
+        'periodo',
+        alt.Tooltip('mediana_variacao', format='.1%'),
         alt.Tooltip('obs')
     ]
 
-    if group_column:
-        # Se um group_column é dado (ex: "Grupo"), usa para colorir as linhas
-        color_encoding = alt.Color(f"{group_column}:N", title="Grupo")
+    if group_column and len(filtered_df[group_column].unique()) > 1:
+        # Lógica para MÚLTIPLOS GRUPOS (Incluindo Base)
+        
+        # Define a ordem do DOMAIN (Base sempre primeiro)
+        grupos_no_df = list(filtered_df[group_column].unique())
+        if 'Base' in grupos_no_df:
+            grupos_no_df.remove('Base')
+            grupos_no_df.insert(0, 'Base')
+        
+        cores_tableau10 = [
+            '#4C78A8', '#F58518', '#E45756', '#72B7B2', '#54A24B', 
+            '#EECA3B', '#B279A2', '#FF9DA6', '#9D755D', '#BAB0AC'
+        ]
+        
+        # Pega as cores da paleta para os outros grupos (excluindo a primeira)
+        cores_outros = cores_tableau10
+        range_cores = [BASE_COLOR] + cores_outros[:len(grupos_no_df) - 1]
+        
+        # 4. Cria a codificação de cor com DOMAIN e RANGE fixos
+        color_encoding = alt.Color(
+            f"{group_column}:N", 
+            title="Grupo",
+            scale=alt.Scale(
+                domain=grupos_no_df, # Ordem fixa dos grupos
+                range=range_cores    # Cores fixas correspondentes (Base + Tableau)
+            )
+        )
+        
         tooltip_list.append(alt.Tooltip(f"{group_column}:N", title="Grupo"))
+        
+        # Configuração de interatividade
         selection = alt.selection_point(
-            fields=["Grupo"],   # As categorias que queremos permitir a interação
-            bind="legend",      # Liga a interação com a legenda
+            fields=["Grupo"],
+            bind="legend",
         )
         opacidade = alt.condition(selection, alt.value(1), alt.value(0.1))
         p = [selection]
+        color_base = color_encoding # Usa a codificação de cor
+        
     else:
+        # Lógica para GRUPO ÚNICO (como na aba 'Base')
+        # A cor é definida diretamente para BASE_COLOR
+        color_base = alt.ColorValue(BASE_COLOR)
         opacidade = alt.value(1)
         p = []
+
 
     # Gráfico base
     base = alt.Chart(filtered_df).encode(
         x=alt.X("periodo:O", title="Ano.Trimestre"),
-        color="Grupo:N",
         tooltip=tooltip_list,
         opacity=opacidade
     ).add_params(*p)
 
     # Gráfico 1: Variação da Renda
     chart_renda = base.mark_line().encode(
-        y=alt.Y("mediana_variacao:Q", 
-                title="Variação Mediana da Renda", 
+        y=alt.Y("mediana_variacao:Q",
+                title="Variação Mediana da Renda",
                 axis=alt.Axis(format=".1%"),
                 scale=alt.Scale(domain=[y_range_values[0], y_range_values[1]], clamp=True)
                 ),
-        color=color_encoding
+        # Usa a cor definida de forma condicional
+        color=color_base
     ).properties(
         height=400
     ).interactive() # Permite zoom e pan
@@ -250,7 +285,8 @@ def create_combined_chart(df, group_column=None):
     # Gráfico 2: Número de Observações
     chart_obs = base.mark_line(point=False).encode(
         y=alt.Y("obs:Q", title="N (Amostras)"),
-        color=color_encoding
+        # Usa a cor definida de forma condicional
+        color=color_base
     ).properties(
         height=100
     ).interactive()
@@ -274,9 +310,9 @@ st.title("Mediana da Variação da Renda")
 # Cria as abas
 tab_metodologia, tab_base, tab_app, tab_switcher, tab_sexo, tab_regioes, tab_carteira, tab_quartis, tab_idade, tab_rac, tab_edu, tab_ocp, tab_div, tab_classes, tab_clusters = st.tabs([
     "Metodologia",
-    "Base", 
-    "Trabalhador de App", 
-    "Job Switcher", 
+    "Base",
+    "Trabalhador de App",
+    "Job Switcher",
     "Sexo",
     "Regiões",
     "Carteira Assinada",
@@ -304,7 +340,7 @@ with tab_metodologia:
     trimestralmente, após as cinco entrevistas os domicílios são retirados da amostra. Em um trimeste, aproximadamente
     20% dos domicílios são visitados pela primeira vez, e 20% estão na quinta visita. Dessa forma, conseguimos acompanhar
     a evolução dos indivíduos de determinado domicílio apenas durante 5 trimestres consecutivos. Portanto, para nossa análise
-    da mediana da variação da renda dos indivíduos, calculamos as variações da primeira entrevista para a quinta entrevista das 
+    da mediana da variação da renda dos indivíduos, calculamos as variações da primeira entrevista para a quinta entrevista das
     rendas daqueles indivíduos que possuíam rendas válidas.
 
     ## Pareamento
@@ -313,11 +349,11 @@ with tab_metodologia:
     cross-section. Para contornar esse problema, reproduzimos um método de pareamento de domicílios e indivíduos elaborada nesse
     artigo: OSORIO, RAFAEL. **Sobre a Montagem e a Identificação dos Painéis da PNAD Contínua. Ipea, 2022**. Com isso, conseguimos
     mapear os indivíduos com diferentes graus de confiabilidade no pareamento. Antes do pareamento dos indivíduos
-    identificamos os grupos domésticos dentro de um mesmo domicílio. Os indivíduos de grupos domésticos distintos possuem conjuntos de entrevistas sem 
+    identificamos os grupos domésticos dentro de um mesmo domicílio. Os indivíduos de grupos domésticos distintos possuem conjuntos de entrevistas sem
     intersecção. Se um domicílio tem indivíduos com registros de pessoa nas primeira e segunda visitas,
     e outros com registros nas terceira, quarta e quinta visitas, há dois grupos domésticos. Se um
     indivíduo tem registros de pessoa em todas as entrevistas, há apenas um grupo doméstico, não
-    importando quão radicais possam ser as mudanças na sua composição. 
+    importando quão radicais possam ser as mudanças na sua composição.
     A partir disso, classificamos os indivíduos da seguinte forma:
 
     Classe 1: Neste, que é o caso mais simples e de menor incerteza na identificação, em todas as entrevistas o grupo
@@ -326,14 +362,14 @@ with tab_metodologia:
     Classe 2: Se o grupo doméstico tem tamanho constante, mas há indivíduos que não estão presentes em todas as entrevistas.
     Classificamos como 2 os indivíduos que estão presentes em todas as entrevistas, o grupo doméstico é composto por
     conjuntos de pessoas idênticas segundo sexo e data de nascimento, mas ao menos um tem variações
-    na condição no domicílio e número de ordem. 
+    na condição no domicílio e número de ordem.
 
     Classe 3: Indivíduos que pertecem a grupos domésticos que mudam de tamanha ou composição,
     e/ou cujas pessoas possuem variáveis com erros variados de declaração ou registro, porém tais
     indivíduos possuem mesmo sexo e data de nascimento e aparecem em todas as entrevistas.
                 
     Classe >=4: Menos confiabilidade no pareamento dos indivíduos, indivíduos que aparecem em apenas
-    algumas entrevistas. 
+    algumas entrevistas.
     """)
 
     st.subheader("Distribuição das Classes de Pareamento ao Longo do Tempo")
@@ -345,7 +381,7 @@ with tab_metodologia:
         
         # Filtra os dados com base no slider de ano da sidebar
         df_classes_filtrado = df_classes_long[
-            (df_classes_long["ano"] >= year_range[0]) & 
+            (df_classes_long["ano"] >= year_range[0]) &
             (df_classes_long["ano"] <= year_range[1])
         ]
 
@@ -423,7 +459,7 @@ with tab_metodologia:
 
         ax.yaxis.set_major_formatter(mticker.PercentFormatter(xmax=1.0))
         
-        ylim_max = 0.6 
+        ylim_max = 0.6
         if not df_nula['percentual_menor_igual_zero'].empty:
             ylim_max = max(df_nula['percentual_menor_igual_zero'].max() * 1.1, 0.6)
             
@@ -434,7 +470,7 @@ with tab_metodologia:
         ax.legend(fontsize=11)
         plt.tight_layout()
         
-        st.pyplot(fig) 
+        st.pyplot(fig)
     else:
         st.warning("Não foi possível carregar os dados para o gráfico de variação nula.")
 
@@ -451,8 +487,8 @@ with tab_base:
     df_base_combined = pd.concat([df_base])
     
     if not df_base_combined.empty:
-        # Chama a mesma função, mas agora passando 'group_column'
-        chart = create_combined_chart(df_base_combined, group_column="Grupo")
+        # Chamamos SEM 'group_column' para forçar a lógica de grupo único e cor BASE_COLOR
+        chart = create_combined_chart(df_base_combined)
         st.altair_chart(chart, use_container_width=True)
 
 # --- Aba 2: Trabalhador de App ---
