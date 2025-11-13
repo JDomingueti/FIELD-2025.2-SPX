@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
+import matplotlib.pyplot as plt            
+import matplotlib.ticker as mticker
 
 st.set_page_config(page_title="Wage Tracker", layout="wide")
 
@@ -80,9 +82,53 @@ def load_data(suffix):
         st.error(f"Arquivo de dados não encontrado: {file_path}")
         return pd.DataFrame() # Retorna um DataFrame vazio se o arquivo não existir
 
-# --- Sidebar (Filtros Globais) ---
+@st.cache_data
+def load_data_variacao_nula(base_path):
+    """Carrega os dados para o gráfico de variação nula."""
+    # Assume que o arquivo está na mesma pasta base dos outros
+    file_path = f"{base_path}/estatisticas_variacao_nula.csv" 
+    try:
+        df = pd.read_csv(file_path)
+        # Cria a coluna 'ano_tri' aqui para ficar em cache
+        df['ano_tri'] = df['ano_final'].astype(str) + '.' + df['trimestre'].astype(str)
+        return df
+    except FileNotFoundError:
+        st.error(f"Arquivo não encontrado para o gráfico de metodologia: {file_path}")
+        return None
 
-st.sidebar.title("Opções de Filtro")
+@st.cache_data
+def load_data_classes_pareamento(base_path):
+    """
+    Carrega e transforma os dados de percentual das classes de pareamento
+    para um formato "longo", pronto para o Altair.
+    """
+    file_path = f"{base_path}/contagem_classe_pareamento.csv"
+    try:
+        df = pd.read_csv(file_path)
+    except FileNotFoundError:
+        st.error(f"Arquivo não encontrado para o gráfico de classes: {file_path}")
+        return None
+
+    # Criar a coluna 'periodo' para o eixo X (ex: "2012.1")
+    df['periodo'] = df['ano'].astype(str) + '.' + df['trimestre'].astype(str)
+    
+    # Definir as colunas que são "percentuais"
+    value_vars = [f'classe {i}' for i in range(1, 6)]
+    
+    # Manter colunas de identificação
+    id_vars = ['periodo', 'ano', 'trimestre', 'total_individuos']
+    
+    df_long = df.melt(
+        id_vars=id_vars,
+        value_vars=value_vars,
+        var_name='Classe',      
+        value_name='Percentual' 
+    )
+    
+    return df_long
+
+
+# --- Sidebar (Filtros Globais) ---
 
 st.sidebar.title("Opções de Filtro")
 
@@ -226,7 +272,8 @@ def create_combined_chart(df, group_column=None):
 st.title("Mediana da Variação da Renda")
 
 # Cria as abas
-tab_base, tab_app, tab_switcher, tab_sexo, tab_regioes, tab_carteira, tab_quartis, tab_idade, tab_rac, tab_edu, tab_ocp, tab_div, tab_classes = st.tabs([
+tab_metodologia, tab_base, tab_app, tab_switcher, tab_sexo, tab_regioes, tab_carteira, tab_quartis, tab_idade, tab_rac, tab_edu, tab_ocp, tab_div, tab_classes, tab_clusters = st.tabs([
+    "Metodologia",
     "Base", 
     "Trabalhador de App", 
     "Job Switcher", 
@@ -239,8 +286,157 @@ tab_base, tab_app, tab_switcher, tab_sexo, tab_regioes, tab_carteira, tab_quarti
     "Nível educacional",
     "Ocupações",
     "Divisões ocp.",
-    "Classes de Renda"
+    "Classes de Renda",
+    "Clusters de Renda"
 ])
+
+with tab_metodologia:
+    #st.header("Metodologia")
+
+    st.markdown("""
+    # Metodologia
+
+    ## Data Source
+
+    Os dados que utilizamos para a construção do Wage Tracker são oriundos da PNAD (Pesquisa Nacional por Amostra
+    de Domicílios) Contínua, realizada pelo IBGe para fornecer dados sobre a força de trabalho e o mercado de trabalho
+    brasileiro de forma trimestral. Nas pesquisas da PNAD Contínua os domicílios são visitados cinco vezes consecutivas
+    trimestralmente, após as cinco entrevistas os domicílios são retirados da amostra. Em um trimeste, aproximadamente
+    20% dos domicílios são visitados pela primeira vez, e 20% estão na quinta visita. Dessa forma, conseguimos acompanhar
+    a evolução dos indivíduos de determinado domicílio apenas durante 5 trimestres consecutivos. Portanto, para nossa análise
+    da mediana da variação da renda dos indivíduos, calculamos as variações da primeira entrevista para a quinta entrevista das 
+    rendas daqueles indivíduos que possuíam rendas válidas.
+
+    ## Pareamento
+    
+    A PNAD Contínua não disponibiliza suas pesquisas no formato de dados em painéis, disponibilizando apenas na estrutura
+    cross-section. Para contornar esse problema, reproduzimos um método de pareamento de domicílios e indivíduos elaborada nesse
+    artigo: OSORIO, RAFAEL. **Sobre a Montagem e a Identificação dos Painéis da PNAD Contínua. Ipea, 2022**. Com isso, conseguimos
+    mapear os indivíduos com diferentes graus de confiabilidade no pareamento. Antes do pareamento dos indivíduos
+    identificamos os grupos domésticos dentro de um mesmo domicílio. Os indivíduos de grupos domésticos distintos possuem conjuntos de entrevistas sem 
+    intersecção. Se um domicílio tem indivíduos com registros de pessoa nas primeira e segunda visitas,
+    e outros com registros nas terceira, quarta e quinta visitas, há dois grupos domésticos. Se um
+    indivíduo tem registros de pessoa em todas as entrevistas, há apenas um grupo doméstico, não
+    importando quão radicais possam ser as mudanças na sua composição. 
+    A partir disso, classificamos os indivíduos da seguinte forma:
+
+    Classe 1: Neste, que é o caso mais simples e de menor incerteza na identificação, em todas as entrevistas o grupo
+    doméstico é composto por conjuntos de pessoas idênticas nessas quatro características
+
+    Classe 2: Se o grupo doméstico tem tamanho constante, mas há indivíduos que não estão presentes em todas as entrevistas.
+    Classificamos como 2 os indivíduos que estão presentes em todas as entrevistas, o grupo doméstico é composto por
+    conjuntos de pessoas idênticas segundo sexo e data de nascimento, mas ao menos um tem variações
+    na condição no domicílio e número de ordem. 
+
+    Classe 3: Indivíduos que pertecem a grupos domésticos que mudam de tamanha ou composição,
+    e/ou cujas pessoas possuem variáveis com erros variados de declaração ou registro, porém tais
+    indivíduos possuem mesmo sexo e data de nascimento e aparecem em todas as entrevistas.
+                
+    Classe >=4: Menos confiabilidade no pareamento dos indivíduos, indivíduos que aparecem em apenas
+    algumas entrevistas. 
+    """)
+
+    st.subheader("Distribuição das Classes de Pareamento ao Longo do Tempo")
+
+    # geracao do grafico
+    df_classes_long = load_data_classes_pareamento(arquivo_base)
+
+    if df_classes_long is not None and not df_classes_long.empty:
+        
+        # Filtra os dados com base no slider de ano da sidebar
+        df_classes_filtrado = df_classes_long[
+            (df_classes_long["ano"] >= year_range[0]) & 
+            (df_classes_long["ano"] <= year_range[1])
+        ]
+
+        if not df_classes_filtrado.empty:
+            # Cria o gráfico de área empilhado com Altair
+            area_chart = alt.Chart(df_classes_filtrado).mark_area().encode(
+                # Eixo X é o 'periodo' (ex: "2012.1")
+                x=alt.X('periodo:O', title='Período (Ano.Trimestre)'),
+                
+                # Eixo Y é o 'Percentual'
+                # stack='zero' garante que as áreas somem 100%
+                y=alt.Y('Percentual:Q', stack='zero', title='Proporção de Indivíduos', axis=alt.Axis(format='%')),
+                
+                # A cor é baseada na 'Classe'
+                color=alt.Color('Classe:N', title='Classe de Pareamento'),
+                
+                # Tooltip para interatividade
+                tooltip=[
+                    alt.Tooltip('periodo', title='Período'),
+                    alt.Tooltip('Classe'),
+                    alt.Tooltip('Percentual', format='.1%'),
+                    alt.Tooltip('total_individuos', title='N Total no Período')
+                ]
+            ).properties(
+                height=350
+            ).interactive() # Permite zoom e pan
+
+            st.altair_chart(area_chart, use_container_width=True)
+            
+        else:
+            st.warning("Nenhum dado de classe de pareamento encontrado para o período selecionado.")
+
+
+    st.markdown("""
+    ## Pesos Amostrais
+
+    Optamos por não utilizar os pesos amostrais que iriam possuir a função de tentar utilizar a nossa amostra da PNAD
+    para reproduzir uma proxy dos dados caso toda a população do Brasil fosse entrevistada. Nossa decisão se baseou no fato de que
+    estamos reduzindo a nossa amostra ao utilizar apenas indivíduos de classe 1 a 3, como os pesos são calculados utilizando como base
+    todos os indivíduos da amostra, ao filtrar os indivíduos de classe 1 a 3, os pesos amostrais se tornam enviesados.
+
+    Estamos com uma amostra de aproximadamente 25.000 indivíduos por trimestre, dado que estamos olhando apenas para os indivíduos
+    de classe 1 a 3 e apenas aproximadamente 20% da amostra total daquele trimestre. Durante os anos de 2020, 2021 e 2022, apresentamos uma
+    amostra reduzida de aproximadamente 10.000 indivíduos, porém essa amostra começa a aumentar em 2023, estando agora em patamares
+    próximos de anos pré-pandêmicos.
+                
+    """)
+
+    st.markdown("---") # Adiciona uma linha divisória
+    st.header("Proporção de Variação de Renda Nula")
+    st.markdown("""
+    O gráfico abaixo mostra a proporção de indivíduos cuja renda não variou (variação = 0%)
+    ou não aumentou (variação <= 0%) entre a primeira e a quinta entrevista. Importante analisar esse gráfico
+    pois sem a aplicação do deflator nas rendas, em muitos trimestres a mediana da variação da renda está em 0%.
+    """)
+
+    # Carrega os dados usando a nova função de cache
+    df_nula = load_data_variacao_nula(arquivo_base) # Passa a variável 'arquivo_base'
+
+    # Só executa se os dados foram carregados com sucesso
+    if df_nula is not None and not df_nula.empty:
+        
+        plt.style.use('seaborn-v0_8-whitegrid')
+        fig, ax = plt.subplots(figsize = (15, 8))
+
+        ax.plot(df_nula['ano_tri'], df_nula['percentual_zero'], marker = 'o', linestyle = '-', label='Proporção com Variação = 0%')
+        ax.plot(df_nula['ano_tri'], df_nula['percentual_menor_igual_zero'], marker='s', linestyle='--', label='Proporção com Variação <= 0%')
+
+        # add linha em 50%
+        ax.axhline(y=0.5, color='red', linestyle=':', linewidth=1.5, label='Limite de 50% (Mediana = 0)')
+
+        ax.set_title('Proporção de Indivíduos com Variação de Renda Nula ou Negativa', fontsize=16)
+        ax.set_xlabel('Período (Ano-Trimestre)', fontsize=12)
+        ax.set_ylabel('Proporção', fontsize=12)
+
+        ax.yaxis.set_major_formatter(mticker.PercentFormatter(xmax=1.0))
+        
+        ylim_max = 0.6 
+        if not df_nula['percentual_menor_igual_zero'].empty:
+            ylim_max = max(df_nula['percentual_menor_igual_zero'].max() * 1.1, 0.6)
+            
+        ax.set_ylim(0, ylim_max)
+        plt.xticks(rotation=45, ha='right')
+        ax.xaxis.set_major_locator(plt.MaxNLocator(20))
+
+        ax.legend(fontsize=11)
+        plt.tight_layout()
+        
+        st.pyplot(fig) 
+    else:
+        st.warning("Não foi possível carregar os dados para o gráfico de variação nula.")
 
 # --- Aba 1: Base (Geral) ---
 with tab_base:
@@ -528,5 +724,23 @@ with tab_classes:
         # Chama a mesma função, mas agora passando 'group_column'
         chart = create_combined_chart(df_classe_combined, group_column="Grupo")
         st.altair_chart(chart, use_container_width=True)
+
+with tab_clusters:
+    st.header("Clusters de Renda")
+    df_base = load_data(grupos_suffix['Base'] + codigo_deflator)
+    df_cluster_0 = load_data(grupos_suffix["Cluster 0"] + codigo_deflator)
+    df_cluster_1 = load_data(grupos_suffix["Cluster 1"] + codigo_deflator)
+
+    df_base['Grupo'] = "Base"
+    df_cluster_0["Grupo"] = "Cluster 0"
+    df_cluster_1['Grupo'] = "Cluster 1"
+
+    df_cluster_combined = pd.concat([df_base, df_cluster_0, df_cluster_1])
+
+    if not df_cluster_combined.empty:
+        # Chama a mesma função, mas agora passando 'group_column'
+        chart = create_combined_chart(df_cluster_combined, group_column="Grupo")
+        st.altair_chart(chart, use_container_width=True)
+
 
 st.caption("Fonte: PNAD Contínua — Dados de 2012 a 2025")

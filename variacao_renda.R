@@ -59,8 +59,8 @@ calcular_variacoes <- function(filtro) {
       else if (grepl("18", filtro)) filt <- c("181D", "182D", "183D", "184D", "185D", "186D", "187D")
       else if (grepl("19", filtro)) filt <- c("190D", "191D", "192D", "193D", "194D", "195D", "196D", "197D", "198D", "199D")
       else if (grepl("20", filtro)) filt <- c("201D", "202D", "203D")
-      else if (grepl("21", filtro)) filt <- c("21AD", "21BD", "21CD", "21DD", "21DD", "21ED")
-      else if (grepl("22", filtro)) filt <- c("220", "221")
+      else if (grepl("21", filtro)) filt <- c("21AD", "21BD", "21CD", "21DD", "21ED")
+      else if (grepl("22", filtro)) filt <- c("220D", "221D")
     } else {
       if (grepl("17", filtro)) filt <- c("171", "172", "173", "174", "175")
       else if (grepl("18", filtro)) filt <- c("181", "182", "183", "184", "185", "186", "187")
@@ -116,7 +116,7 @@ calcular_variacoes <- function(filtro) {
           next
         }
         
-        cat("Processando:", rotulo_primeiro, "→", rotulo_ultimo, "\n")
+        cat("Processando:", rotulo_primeiro, "->", rotulo_ultimo, "\n")
         
         dados_classificados <- read_parquet(arquivo_entrada)
         
@@ -200,10 +200,10 @@ calcular_variacoes <- function(filtro) {
             filter(grupo_renda == classe)
 
         } else if (grepl("22", filtro )) { #Clusters de Renda
-          if (is_deflated) cluster <- substring(filtro, l-1, l-1)
-          else cluster <- substring(filtro, l, l)
+          if (is_deflated) cluster <- as.numeric(substring(filtro, l-1, l-1))
+          else cluster <- as.numeric(substring(filtro, l, l))
           dados_classificados <- dados_classificados %>%
-            filter(grupo_renda_kmeans  == cluster) 
+            filter(grupo_renda_kmeans == cluster) 
         }
         
         dados_variacao <- dados_classificados %>%
@@ -295,7 +295,7 @@ calcular_variacoes <- function(filtro) {
   
     # salva o df de estatisticas de var zero 
     if (filtro == "0" && nrow(estatisticas_var_zero) > 0) {
-      write.csv(estatisticas_var_zero, here(std_path, "estatisticas_variacao_nula.csv"), row.names = FALSE)
+      write.csv(estatisticas_var_zero, here(pasta_saida, "estatisticas_variacao_nula.csv"), row.names = FALSE)
     }
   
     # (Opcional) salva como CSV para análise posterior
