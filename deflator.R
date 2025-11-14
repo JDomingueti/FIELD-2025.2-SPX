@@ -35,16 +35,18 @@ create_deflator_df <- function(deflator_path, save_path) {
 
 # Função que aplica o deflator (path para o parquet ou o parquet) em um dataframe
 # (path para o dataframe ou o datafrane)
-apply_deflator_parquet <- function(df, deflator) {
-  if (is.character(df)) {
-    dat <- read_parquet(df)
-  } else dat <- df
-  if (is.character(deflator)) {
-    def <- read_parquet(deflator)
-  } else def <- deflator
-  dfm <- df
-  if (length(setdiff(c("Habitual", "Efetivo"), names(dfm))) > 0)
-    dfm <- merge(dat, def, by=c("Ano", "UF", "Trimestre"))
+apply_deflator_parquet <- function(df, deflator, has_deflat = FALSE) {
+  if (!has_deflat) {
+    if (is.character(df)) {
+      dat <- read_parquet(df)
+    } else dat <- df
+    if (is.character(deflator)) {
+      def <- read_parquet(deflator)
+    } else def <- deflator
+    dfm <- df
+    if (length(setdiff(c("Habitual", "Efetivo"), names(dfm))) > 0)
+      dfm <- merge(dat, def, by=c("Ano", "UF", "Trimestre"))
+  } else dfm <- df
   dfm$VD4016_deflat <- dfm$VD4016 * dfm$Habitual
   dfm$VD4017_deflat <- dfm$VD4017 * dfm$Efetivo
   dfm$VD4019_deflat <- dfm$VD4019 * dfm$Habitual
