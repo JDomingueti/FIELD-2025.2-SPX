@@ -2,7 +2,7 @@ library(PNADcIBGE)
 library(dplyr)
 library(arrow)
 library(readxl)
-library(dplyr)
+library(tidyr)
 
 # funcao para aplicar o deflator na renda
 apply_deflator <- function(df_path, input_txt_path, vars_needed, dict.path, deflator.path) {
@@ -33,20 +33,47 @@ create_deflator_df <- function(deflator_path, save_path) {
   write_parquet(def, save_path)
 }
 
+# Esta função é uma adaptação criada à partir de linhas do código get_pnadc da
+# biblioteca PNADcIBGE criada por Gabriel Assunção
+# (https://github.com/Gabriel-Assuncao/PNADcIBGE/blob/master/R/get_pnadc.R)
+baixar_deflator <- function(savedir) {
+  library(utils)
+  library(RCurl)
+  library(here)
+  ftpdir <- "https://ftp.ibge.gov.br/Trabalho_e_Rendimento/Pesquisa_Nacional_por_Amostra_de_Domicilios_continua/Trimestral/Microdados/"
+  docfiles <- unlist(strsplit(unlist(strsplit(unlist(strsplit(gsub("\r\n", "\n", RCurl::getURL(paste0(ftpdir, "Documentacao/"), dirlistonly=TRUE, .opts=list())), "\n")), "<a href=[[:punct:]]")), ".zip"))
+  defzip <- paste0(docfiles[which(startsWith(docfiles, "Deflatores"))], ".zip")
+  utils::download.file(url=paste0(ftpdir, "Documentacao/", defzip), destfile=paste0(savedir, "/Deflatores.zip"), mode="wb")
+  utils::unzip(zipfile=paste0(savedir, "/Deflatores.zip"), exdir=savedir)
+  defname <- dir(savedir, pattern=paste0("^deflator_PNADC_.*\\_trimestral_.*\\.xls$"), ignore.case=FALSE)
+  deffile <- paste0(savedir, "/", defname)
+  deffile <- rownames(file.info(deffile)[order(file.info(deffile)$mtime),])[length(deffile)]
+  create_deflator_df(deffile, here("PNAD_data", "deflator.parquet"))
+  file.remove(here("PNAD_data", "Deflatores.zip"))
+  file.remove(deffile)
+}
+
 # Função que aplica o deflator (path para o parquet ou o parquet) em um dataframe
-# (path para o dataframe ou o datafrane)
-apply_deflator_parquet <- function(df, deflator, has_deflat = FALSE) {
-  if (!has_deflat) {
-    if (is.character(df)) {
-      dat <- read_parquet(df)
-    } else dat <- df
+# (path para o dataframe ou o dataframe)
+apply_deflator_parquet <- function(df, deflator) {
+  if (is.character(df)) {
+    dat <- read_parquet(df)
+  } else dat <- df
+  if (length(setdiff(c("Habitual", "Efetivo"), names(dat))) > 0) {
     if (is.character(deflator)) {
       def <- read_parquet(deflator)
     } else def <- deflator
-    dfm <- df
+    last_year <- max(dat$Ano)
+    last_trim <- max(dat[dat$Ano == last_year,]$Trimestre)
+    if (nrow(filter(def, Ano == last_year, Trimestre == last_trim)) == 0) {
+      cat("Dados para deflação desatualizados. Baixando nova base de deflatores.\n")
+      baixar_deflator(here("PNAD_data"))
+      cat("Realizando nova tentativa de aplicar deflatores...\n")
+      return(apply_deflator_parquet(df, here("PNAD_data", "deflator.parquet")))
+    }
     if (length(setdiff(c("Habitual", "Efetivo"), names(dfm))) > 0)
       dfm <- merge(dat, def, by=c("Ano", "UF", "Trimestre"))
-  } else dfm <- df
+  } else dfm <- dat
   dfm$VD4016_deflat <- dfm$VD4016 * dfm$Habitual
   dfm$VD4017_deflat <- dfm$VD4017 * dfm$Efetivo
   dfm$VD4019_deflat <- dfm$VD4019 * dfm$Habitual
