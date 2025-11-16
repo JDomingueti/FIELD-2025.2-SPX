@@ -1,0 +1,146 @@
+library(reticulate)
+suppressWarnings(use_virtualenv("./venv", required = TRUE))
+lr <- reticulate::import_from_path("log_renda", path=getwd())
+fc <- reticulate::import_from_path("fixo_cluster_renda", path=getwd())
+kmc <- reticulate::import_from_path("kmeans_cluster_renda", path=getwd())
+
+library(here)
+library(httr)
+library(projmgr)
+library(dplyr)
+library(RCurl)
+source("colunas_id.R")
+source("classificação.R")
+source("deflator.R")
+source("download_parquets.R")
+source("variacao_renda.R")
+source("filtrar_trabalhadores.R")
+
+
+last_data <- function(act_year, act_tri) {
+  last_year <- act_year
+  last_tri <- act_tri
+  repeat {
+  ftpdir <- "https://ftp.ibge.gov.br/Trabalho_e_Rendimento/Pesquisa_Nacional_por_Amostra_de_Domicilios_continua/Trimestral/Microdados/"
+  if (!projmgr::check_internet()) {
+    message("The internet connection is unavailable.\n")
+    return(NULL)
+  }
+  if (httr::http_error(httr::GET(ftpdir, httr::timeout(60)))) {
+    message("The microdata server is unavailable.\n")
+    return(NULL)
+  }
+  restime <- getOption("timeout")
+  on.exit(options(timeout=restime))
+  options(timeout=max(600, restime))
+  ftpdata <- paste0(ftpdir, last_year, "/")
+  datayear <- unlist(strsplit(unlist(strsplit(unlist(strsplit(gsub("\r\n", "\n", RCurl::getURL(ftpdata, dirlistonly=TRUE, .opts=list())), "\n")), "<a href=[[:punct:]]")), ".zip"))
+  dataname <- datayear[which(startsWith(datayear, paste0("PNADC_0", last_tri, last_year)))]
+  if (length(dataname) == 0)
+    if (last_tri == 1) {
+      last_year <- last_year - 1
+      last_tri <- 4
+    } else last_tri <- last_tri - 1
+  else break
+  }
+  return(c(last_year, last_tri))
+}
+
+download_all <- function(act_year, act_tri) {
+  std_path <- here(getwd(), "PNAD_data")
+  for (year in 2012:act_year) {
+    tmp_path <- here(std_path, year)
+    if (!dir.exists(tmp_path)) dir.create(tmp_path, recursive = TRUE)
+    for (tri in 1:4) {
+      if ((tri > act_tri) & year == act_year) break
+      else if (file.exists(here(tmp_path, paste0("PNADC_0", tri, year, ".parquet")))) next
+      else {
+        cat(paste0("Fazendo download dos dados de ", year, ".", tri))
+        download_parquet(year, tri, TRUE)
+      }
+    }
+  }
+  cat("\n -> Todos os dados estão baixados!\n")
+}
+
+classify_all <- function(act_year, act_tri) {
+  std_path <- here(getwd(), "PNAD_data", "Pareamentos")
+  for (year in 2012:(act_year-1)) {
+    if (!dir.exists(std_path)) dir.create(std_path, recursive = TRUE)
+    for (tri in 1:4) {
+      if ((tri > act_tri) & year == (act_year-1)) break
+      if (!file.exists(here(std_path, paste0("pessoas_", year, tri, "_", year+1, tri, ".parquet")))) {
+        cat(paste0("Agrupando dados do período ", year, ".", tri, " -> ", year+1, ".", tri))
+        colunas_id_func(list(ano_inicio = year,tri_inicio = tri,ano_fim = year+1,tri_fim = tri), TRUE)
+      }
+      if (!file.exists(here(std_path, paste0("pessoas_", year, tri, "_", year+1, tri, "_classificado.parquet")))) {
+        cat(paste0("Classificando dados do período ", year, ".", tri, " -> ", year+1, ".", tri))
+        capture.output(classificar_painel_pnadc(here(getwd(), "PNAD_data", "Pareamentos", paste0("pessoas_", year, tri, "_", year+1, tri, ".parquet"))))
+        pos_processing(year, tri)
+      }
+    }
+  }
+  cat("\n -> Todos os arquivos completamente atualizados!\n")
+}
+
+pos_processing <- function(ano, tri) {
+  path <- here(getwd(), "PNAD_data", "Pareamentos", paste0("pessoas_", ano, tri, '_', ano+1, tri, "_classificado.parquet"))
+  df <- read_parquet(path)
+  df <- df %>%
+        apply_deflator_parquet(here("PNAD_data", "deflator.parquet")) %>%
+        classificar_trabalhador_app() %>%
+        filtrar_job_switcher %>%
+        filtrar_carteira_assinada
+  write_parquet(df, path)
+  lr$processar_dados(path) #log_renda
+  fc$faixas(as.integer(ano), as.integer(tri)) #fixo_cluster_renda
+  kmc$cluster(as.integer(ano), as.integer(tri), as.integer(2)) #kmeans_cluster_renda
+}
+
+generate_csvs <- function() {
+  filtros <- c(as.character(1:22))
+  std_path <- here(getwd(), "dados_medianas_var")
+  all_files <- list.files(std_path, , full.names = FALSE)
+  found <- FALSE
+  for (filtro in filtros) {
+    for (file in all_files) {
+      found <- grepl(paste0("medianas_variacao_renda_", filtro), file)
+      if (found) break 
+    }
+    if (!found) {
+      cat(paste0("Gerando dados do filtro ", filtro, "\n"))
+      calcular_variacoes(filtro)
+    }
+  }
+  cat("\n -> Arquivos para plotagem atualizados!\n")
+}
+
+
+if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
+  ano_atual <- Sys.Date() %>% format("%Y") %>% as.numeric()
+  tri_atual <- Sys.Date() %>% format("%m") %>% as.numeric() %>%
+              (function(mes) if_else(mes < 4, 1, if_else(mes < 6, 2, if_else(mes < 9, 3, 4)))) # Retorna o trimestre com base no mês
+  ultima <- unlist(last_data(ano_atual, tri_atual))  # Retorna uma lista c(year, tri) com o último ano e trimestre com dados disponíveis
+  print(ultima)
+  cat("======== SCRIPT PARA ATUALIZAR TODOS OS DADOS ========\n")
+  cat(" Processos disponíveis no script.\n")
+  cat(" -> [1] Verificar o download dos arquivos base;\n")
+  cat(" -> [2] Verificar os dados classificados;\n")
+  cat(" -> [3] Verificar os dados para plot;\n")
+  cat(" -> [4] Todos os processos;\n")
+  cat(" -> [*] Parar execução.\n")
+  cat("======================================================\n")
+  
+  repeat {
+    cat("\n -> Escolha o processo a ser realizado:\n")
+    proccess <- readline(" --> : ")
+    if (proccess == "*") break
+    else if (!(proccess %in% c("1", "2", "3", "4"))) {
+      cat(" -> Processo inexistente. Escolha novamente.\n")
+      next
+    }
+    if (proccess %in% c("1", "4")) download_all(ultima[1], ultima[2])
+    if (proccess %in% c("2", "4")) classify_all(ultima[1], ultima[2])
+    if (proccess %in% c("3", "4")) generate_csvs()
+  }
+}
