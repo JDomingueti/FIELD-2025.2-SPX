@@ -14,6 +14,7 @@ download_parquet <- function(year, trimester, deflator) {
   temp_path <- here(std_path, "Temp")
   if (!dir.exists(dir_path)) dir.create(dir_path, recursive = TRUE)
   if (!dir.exists(temp_path)) dir.create(temp_path)
+  if (deflator) columns_to_keep <- append(columns_to_keep, c("Habitual", "Efetivo"))
   df <- get_pnadc(year, trimester, deflator = deflator, labels = FALSE, design = FALSE, savedir = temp_path)[columns_to_keep]
   write_parquet(df, file.path(dir_path, paste0("PNADC_0", trimester, year, ".parquet")), compression = "snappy")
   file.remove(list.files(temp_path, full.names = TRUE))
