@@ -69,10 +69,9 @@ apply_deflator_parquet <- function(df, deflator) {
       cat("Dados para deflação desatualizados. Baixando nova base de deflatores.\n")
       baixar_deflator(here("PNAD_data"))
       cat("Realizando nova tentativa de aplicar deflatores...\n")
-      return(apply_deflator_parquet(df, here("PNAD_data", "deflator.parquet")))
+      return(apply_deflator_parquet(dat, here("PNAD_data", "deflator.parquet")))
     }
-    if (length(setdiff(c("Habitual", "Efetivo"), names(dfm))) > 0)
-      dfm <- merge(dat, def, by=c("Ano", "UF", "Trimestre"))
+    dfm <- merge(dat, def, by=c("Ano", "UF", "Trimestre"))
   } else dfm <- dat
   dfm$VD4016_deflat <- dfm$VD4016 * dfm$Habitual
   dfm$VD4017_deflat <- dfm$VD4017 * dfm$Efetivo
