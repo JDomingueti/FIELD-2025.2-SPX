@@ -1,9 +1,14 @@
-library(reticulate)
-suppressWarnings(use_virtualenv("./venv", required = TRUE))
-lr <- reticulate::import_from_path("log_renda", path=getwd())
-fc <- reticulate::import_from_path("fixo_cluster_renda", path=getwd())
-kmc <- reticulate::import_from_path("kmeans_cluster_renda", path=getwd())
-
+tryCatch({
+  library(reticulate)
+  suppressWarnings(use_virtualenv("./venv", required = TRUE))
+  lr <- reticulate::import_from_path("log_renda", path=getwd())
+  fc <- reticulate::import_from_path("fixo_cluster_renda", path=getwd())
+  kmc <- reticulate::import_from_path("kmeans_cluster_renda", path=getwd())
+  }, 
+  error = function(e) {
+    stop("\n !! Erro: Não foi possível importar os códigos do python.\n -> Tente reiniciar o R e rode novamente (Conflito em ordem de importação)\n")
+  }
+)
 library(here)
 library(httr)
 library(projmgr)
@@ -80,7 +85,7 @@ classify_all <- function(act_year, act_tri) {
       }
     }
   }
-  cat("\n -> Todos os arquivos completamente atualizados!\n")
+  cat(" -> Todos os arquivos completamente atualizados!\n")
 }
 
 pos_processing <- function(ano, tri) {
@@ -92,24 +97,31 @@ pos_processing <- function(ano, tri) {
         filtrar_job_switcher %>%
         filtrar_carteira_assinada
   write_parquet(df, path)
+  capture.output({
   lr$processar_dados(path) #log_renda
   fc$faixas(as.integer(ano), as.integer(tri)) #fixo_cluster_renda
   kmc$cluster(as.integer(ano), as.integer(tri), as.integer(2)) #kmeans_cluster_renda
+  })
 }
 
 generate_csvs <- function() {
-  filtros <- c(as.character(1:22))
+  filtros <- c(as.character(0:22), paste0(as.character(0:22), "D"))
   std_path <- here(getwd(), "dados_medianas_var")
   all_files <- list.files(std_path, , full.names = FALSE)
   found <- FALSE
   for (filtro in filtros) {
     for (file in all_files) {
       found <- grepl(paste0("medianas_variacao_renda_", filtro), file)
-      if (found) break 
+      if (found) {
+        if (filtro == "21D") found <- grepl("DD.csv", file)
+        else if (grepl("D", filtro)) found <- grepl("D.csv", file)
+        else found <- grepl(".csv", file)
+      }
+      if (found) break
     }
     if (!found) {
       cat(paste0("Gerando dados do filtro ", filtro, "\n"))
-      calcular_variacoes(filtro)
+      capture.output(calcular_variacoes(filtro))
     }
   }
   cat("\n -> Arquivos para plotagem atualizados!\n")
@@ -121,7 +133,6 @@ if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
   tri_atual <- Sys.Date() %>% format("%m") %>% as.numeric() %>%
               (function(mes) if_else(mes < 4, 1, if_else(mes < 6, 2, if_else(mes < 9, 3, 4)))) # Retorna o trimestre com base no mês
   ultima <- unlist(last_data(ano_atual, tri_atual))  # Retorna uma lista c(year, tri) com o último ano e trimestre com dados disponíveis
-  print(ultima)
   cat("======== SCRIPT PARA ATUALIZAR TODOS OS DADOS ========\n")
   cat(" Processos disponíveis no script.\n")
   cat(" -> [1] Verificar o download dos arquivos base;\n")
