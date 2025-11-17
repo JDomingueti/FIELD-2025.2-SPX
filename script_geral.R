@@ -104,7 +104,7 @@ pos_processing <- function(ano, tri) {
   })
 }
 
-generate_csvs <- function() {
+generate_csvs <- function(ano_final, tri_final) {
   filtros <- c(as.character(0:22), paste0(as.character(0:22), "D"))
   std_path <- here(getwd(), "dados_medianas_var")
   all_files <- list.files(std_path, , full.names = FALSE)
@@ -121,7 +121,7 @@ generate_csvs <- function() {
     }
     if (!found) {
       cat(paste0("Gerando dados do filtro ", filtro, "\n"))
-      capture.output(calcular_variacoes(filtro))
+      capture.output(calcular_variacoes(filtro, ano_final, tri_final))
     }
   }
   cat("\n -> Arquivos para plotagem atualizados!\n")
@@ -152,6 +152,6 @@ if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
     }
     if (proccess %in% c("1", "4")) download_all(ultima[1], ultima[2])
     if (proccess %in% c("2", "4")) classify_all(ultima[1], ultima[2])
-    if (proccess %in% c("3", "4")) generate_csvs()
+    if (proccess %in% c("3", "4")) generate_csvs(ultima[1], ultima[2])
   }
 }

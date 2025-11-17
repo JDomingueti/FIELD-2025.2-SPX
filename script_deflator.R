@@ -4,8 +4,8 @@ source("deflator.R")
 
 y_start <- 2012
 t_start <- 1
-y_end <- 2024
-t_end <- 2
+y_end <- as.integer(readline("Ano Final: "))
+t_end <- as.integer(readline("Trimestre final (1 a 4): "))
 
 tri <- t_start
 deflator_path <- here("PNAD_data", "deflator.parquet")

@@ -779,4 +779,4 @@ with tab_clusters:
         st.altair_chart(chart, use_container_width=True)
 
 
-st.caption("Fonte: PNAD Contínua — Dados de 2012 a 2025")
+st.caption(f"Fonte: PNAD Contínua — Dados de 2012 a {max_yr}")

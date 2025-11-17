@@ -27,7 +27,7 @@ grupo_ocp <- list(
   "3" = c(5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35, 36, 37, 38, 39) # Indústria
 )
 
-calcular_variacoes <- function(filtro) {
+calcular_variacoes <- function(filtro, ano_final, trim_final) {
   paste0("Filtro escolhido:", filtro)
   std_path <- getwd()
   
@@ -38,7 +38,7 @@ calcular_variacoes <- function(filtro) {
   pasta_base <- here(std_path,"PNAD_data", "Pareamentos")
   
   # Lista de trimestres a processar
-  anos <- 2012:2025
+  anos <- 2012:ano_final
   trimestres <- 1:4
   
   if (grepl("D", filtro)){
@@ -101,7 +101,7 @@ calcular_variacoes <- function(filtro) {
     
     for (ano in anos) {
       for (tri in trimestres) {
-        
+        if ((ano == ano_final) & (tri > trim_final)): break
         start_ano <- ano
         start_tri <- tri
         end_ano <- ano + 1
@@ -314,7 +314,23 @@ if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
     cat("10 = Carteira Assinada\n 11 = Média \n 12 = Percentil 25\n 13 = Percentil 75\n 14 = 14-24 anos\n 15 = 25-54 anos\n 16 = 55+ anos\n 17 = Raças\n 18 = Educação\n 19 = Ocupações\n 20 = Com. / Ind. / Serv.\n 21 = Classes de Renda\n 22 = Cluster de Renda\n Caso queira adicionar deflator basta colocar o codigo seguido de 'D' (exemplo: 0D)\n")
     filtro <- readline(" -> ")
     if (filtro %in% c("0", "1", "2", "3","4","5", "6", "7", "8", "9", "10","11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "0D", "1D", "2D", "3D", "4D", "5D", "6D", "7D", "8D", "9D", "10D", "11D", '12D', "13D", "14D", "15D", "16D", "17D", "18D", "19D", "20D", "21D", "22D")) break
-    cat("FIltro Inválido")
+    cat("Filtro Inválido")
   }
-  calcular_variacoes(filtro)
+  ano_end <- as.integer(readline("Ano Final: "))
+  repeat {
+    tri_end <- as.integer(readline("Trimestre final (1 a 4): "))
+    if (!(tri_end %in% 1:4)) {
+      cat("Ano ou trimestre inválido.")
+    }
+    else break
+  }
+  ano_act <- Sys.Date() %>% format("%Y") %>% as.numeric()
+  if (ano_end <= 2012) {
+    cat("Ano final reajustado para 2012.")
+    ano_end <- 2012
+  } else if {
+    cat("Ano final ajustado para o ano atual.")
+    (ano_end > ano_act) ano_end <- ano_act
+  }
+  calcular_variacoes(filtro, ano_end, tri_end)
 }
