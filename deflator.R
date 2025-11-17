@@ -61,6 +61,7 @@ apply_deflator_parquet <- function(df, deflator) {
   } else dat <- df
   if (length(setdiff(c("Habitual", "Efetivo"), names(dat))) > 0) {
     if (is.character(deflator)) {
+      if (!file.exists(deflator)) baixar_deflator(here("PNAD_data"))
       def <- read_parquet(deflator)
     } else def <- deflator
     last_year <- max(dat$Ano)
