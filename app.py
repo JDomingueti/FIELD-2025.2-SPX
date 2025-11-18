@@ -462,7 +462,7 @@ with tab_metodologia:
             # Linha
             line = base_chart.mark_line(color='blue').properties(height=350) 
             # Pontos
-            points = base_chart.mark_point(color='#blue', size=60) 
+            points = base_chart.mark_point(color='blue', size=60) 
 
             chart_grupos = (line + points).interactive()
             st.altair_chart(chart_grupos, use_container_width=True)
