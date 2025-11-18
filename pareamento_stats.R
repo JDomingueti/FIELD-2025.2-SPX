@@ -2,6 +2,7 @@ library(arrow)
 library(dplyr)
 library(readr)
 library(glue)
+library(tidyr)
 
 pasta_base <- "PNAD_data/Pareamentos"
 pasta_saida <- "dados_medianas_var"
@@ -68,18 +69,72 @@ classes_pareamento_individuos <- function(ano, tri) {
   
 }
 
+prop_grupos_domesticos <- function(ano, tri) {
+  ###
+  ###Calcula a proporção de domicilios com 1 grupo doméstico (coluna n_grupos == 1).
+  ###
+  
+  # constroi path do arquivo 
+  file_name <- glue("pessoas_{ano}{tri}_{ano+1}{tri}_grupos_domesticos.parquet")
+  file_path <- file.path(pasta_base, file_name)
+  
+  if (!file.exists(file_path)) {
+    message(glue("Arquivo nao encontrado: {file_path}"))
+    return(NULL)
+  }
+  
+  # leitura do arquivo (
+  df <- tryCatch({
+    read_parquet(file_path, col_select = c("n_grupos", "domicilio_id")) 
+  }, error = function(e) {
+    message(glue("Erro ao ler o arquivo: {file_path}"))
+    return(NULL)
+  })
+  
+  if (is.null(df)) return(NULL)
+  
+  df_domicilios <- df %>% 
+  distinct(domicilio_id, .keep_all = TRUE) 
+  
+  total_domicilios <- nrow(df_domicilios)
+  
+  if (total_domicilios == 0) {
+    message(glue("Aviso: Total de domicilios é zero para {ano}.{tri}"))
+    return(tibble(
+      ano = ano,
+      trimestre = tri,
+      proporcao_1_grupo = 0,
+      total_domicilios = 0
+    ))
+  }
+  
+  # contar a prop de numeros de domicilios com grupo_domestic igual a 1 
+  contagem_1_grupo <- sum(df_domicilios$n_grupos == 1, na.rm = TRUE)
+  proporcao <- contagem_1_grupo / total_domicilios
+  
+  # monta o df de retorno
+  row_data <- tibble(
+    ano = ano,
+    trimestre = tri,
+    proporcao_1_grupo = proporcao,
+    total_domicilios = total_domicilios
+  )
+  
+  return(row_data)
+}
 
-gerar_contagem_classes <- function(ultimo_ano_disponivel, ultimo_tri_disponivel) {
+
+gerar_estatisticas_pareamento <- function(ultimo_ano_disponivel, ultimo_tri_disponivel) {
   # Função que itera sobre os anos e trimestres baseado nos limites dinamicos e gera o CSV final.
   
   # Ajustamos para 2012:(ultimo_ano_disponivel - 1)
   anos <- 2012:(ultimo_ano_disponivel - 1)
   trimestres <- 1:4
   
-  lista_dados <- list() # Lista para armazenar os resultados
-  message("Iniciando geração de contagem de classes...")
+  lista_dados_classes <- list() # Lista para armazenar os resultados
+  lista_dados_grupos <- list()
+  message("Iniciando geração de estatisticas de pareamento...")
   
-  break_outer <- FALSE # Flag para quebrar o loop externo
   
   for (ano in anos) {
     for (tri in trimestres) {
@@ -90,34 +145,50 @@ gerar_contagem_classes <- function(ultimo_ano_disponivel, ultimo_tri_disponivel)
         break
       }
       
-      message(glue("Processando contagem de classes para: {ano}.{tri}"))
-      data_row <- classes_pareamento_individuos(ano, tri)
-      
-      if (!is.null(data_row)) {
-        lista_dados[[length(lista_dados) + 1]] <- data_row
+      # condicao de parada do loop externo
+      if (ano == ultimo_ano_disponivel) {
+        break
       }
+      
+      message(glue("Processando dados para {ano}-{tri}"))
+      
+      # PROCESSAMENTO DAS CLASSES DE INDIVIDUOS
+      data_classes <- classes_pareamento_individuos(ano, tri)
+      if (!is.null(data_classes)) {
+        lista_dados_classes[[length(lista_dados_classes) + 1]] <- data_classes
+      }
+      
+      # PROCESSAMENTO DA PROP DE GRUPOS DOMESTICOS
+      data_grupos <- prop_grupos_domesticos(ano, tri)
+      if (!is.null(data_grupos)) {
+        lista_dados_grupos[[length(lista_dados_grupos) + 1]] <- data_grupos
+      }           
     }
+    # condicao de parada do loop externo apos o interno
     if (ano == (ultimo_ano_disponivel - 1) && tri > ultimo_tri_disponivel) {
       break
+    }
+  }
+  # --- GERAÇÃO DO ARQUIVO CSV DE CLASSES DE INDIVÍDUOS ---
+  if (length(lista_dados_classes) > 0) {
+    df_classes_final <- bind_rows(lista_dados_classes)
+    name_classes <- "contagem_classe_pareamento.csv"
+    path_saida_classes <- file.path(pasta_saida, name_classes)
+    write_csv(df_classes_final, path_saida_classes)
+    message(glue("Arquivo de contagem de classes salvo em: {path_saida_classes}"))
+  } else {
+    message("Nenhum dado processado para contagem de classes de indivíduos.")
   }
   
-  if (length(lista_dados) == 0) {
-    message("Nenhum dado processado para contagem de classes.")
+  # --- GERAÇÃO DO ARQUIVO CSV DE GRUPOS DOMÉSTICOS ---
+  if (length(lista_dados_grupos) > 0) {
+    df_grupos_final <- bind_rows(lista_dados_grupos)
+    name_grupos <- "contagem_grupos_domesticos.csv"
+    path_saida_grupos <- file.path(pasta_saida, name_grupos)
+    write_csv(df_grupos_final, path_saida_grupos)
+    message(glue("Arquivo de grupos domésticos salvo em: {path_saida_grupos}"))
   } else {
-    # Concatena todos os data frames da lista
-    df_final <- bind_rows(lista_dados)
-    
-    # Cria dir se nao existir
-    if (!dir.exists(pasta_saida)) {
-      dir.create(pasta_saida, recursive = TRUE)
-    }
-    
-    name <- "contagem_classe_pareamento.csv"
-    path_saida <- file.path(pasta_saida, name)
-    
-    # Salva CSV
-    write_csv(df_final, path_saida)
-    message(glue("Arquivo de contagem de classes salvo em: {path_saida}"))
+    message("Nenhum dado processado para contagem de classes de indivíduos.")
   }
- }
+
 }

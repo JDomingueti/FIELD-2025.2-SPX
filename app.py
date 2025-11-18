@@ -126,6 +126,23 @@ def load_data_classes_pareamento(base_path):
     )
     
     return df_long
+  
+@st.cache_data
+def load_data_grupos_domesticos(base_path):
+    """
+    Carrega os dados de proporção de domicilios com 1 grupo doméstico.
+    """
+    file_path = f"{base_path}/contagem_grupos_domesticos.csv"
+    try:
+        df = pd.read_csv(file_path)
+    except FileNotFoundError:
+        st.error(f"Arquivo não encontrado para o gráfico de grupos domésticos: {file_path}")
+        return None
+    
+    # Cria a coluna 'periodo' para o eixo X (ex: "2012.1")
+    df['periodo'] = df['ano'].astype(str) + '.' + df['trimestre'].astype(str)
+    
+    return df
 
 
 # --- Sidebar (Filtros Globais) ---
@@ -374,7 +391,7 @@ with tab_metodologia:
 
     st.subheader("Distribuição das Classes de Pareamento ao Longo do Tempo")
 
-    # geracao do grafico
+    # --- GRÁFICO 1: Classes de Pareamento ---
     df_classes_long = load_data_classes_pareamento(arquivo_base)
 
     if df_classes_long is not None and not df_classes_long.empty:
@@ -414,6 +431,43 @@ with tab_metodologia:
         else:
             st.warning("Nenhum dado de classe de pareamento encontrado para o período selecionado.")
 
+    st.markdown("---")
+    # ---GRÁFICO 2: Grupos Domésticos ---
+    st.subheader("Proporção de Domicílios com Apenas 1 Grupo Doméstico")
+
+    df_grupos = load_data_grupos_domesticos(arquivo_base)
+
+    if df_grupos is not None and not df_grupos.empty:
+        # Filtra os dados com base no slider de ano da sidebar
+        df_grupos_filtrado = df_grupos[
+            (df_grupos["ano"] >= year_range[0]) &
+            (df_grupos["ano"] <= year_range[1])
+        ]
+
+        if not df_grupos_filtrado.empty:
+            
+            # Gráfico de Linha + Pontos com Altair
+            base_chart = alt.Chart(df_grupos_filtrado).encode(
+                x=alt.X('periodo:O', title='Período (Ano.Trimestre)'),
+                y=alt.Y('proporcao_1_grupo:Q', 
+                        title='Proporção de 1 Grupo Doméstico', 
+                        axis=alt.Axis(format='%')),
+                tooltip=[
+                    alt.Tooltip('periodo', title='Período'),
+                    alt.Tooltip('proporcao_1_grupo', format='.2%', title='Proporção'),
+                    alt.Tooltip('total_domicilios', title='N Total de Domicílios')
+                ]
+            )
+
+            # Linha
+            line = base_chart.mark_line(color='blue').properties(height=350) 
+            # Pontos
+            points = base_chart.mark_point(color='#blue', size=60) 
+
+            chart_grupos = (line + points).interactive()
+            st.altair_chart(chart_grupos, use_container_width=True)
+        else:
+            st.warning("Nenhum dado de grupos domésticos encontrado para o período selecionado.")
 
     st.markdown("""
     ## Pesos Amostrais

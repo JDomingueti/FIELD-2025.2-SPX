@@ -250,8 +250,8 @@ if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
     if (proccess %in% c("1", "4")) download_all(ultima[1], ultima[2])
     if (proccess %in% c("2", "4")) classify_all(ultima[1], ultima[2])
     if (proccess %in% c("3", "4")) {
-      generate_csvs(ultima[1], ultima[2])
-      gerar_contagem_classes(as.integer(ultima[1]), as.integer(ultima[2]))
+      #generate_csvs(ultima[1], ultima[2])
+      gerar_estatisticas_pareamento(as.integer(ultima[1]), as.integer(ultima[2]))
     }
   }
 }
