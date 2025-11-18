@@ -1,3 +1,44 @@
+# Preparação do ambiente local para todos os códigos
+R_packages <- c("arrow",
+                        "dplyr",
+                        "ggplot2",
+                        "here",
+                        "httr",
+                        "PNADcIBGE",
+                        "projmgr",
+                        "purrr",
+                        "RCurl",
+                        "readxl",
+                        "reticulate",
+                        "scales",
+                        "tidyr")
+suppressMessages(install_packages(setdfiff(R_packages, rownames(installed.packages()))))
+suppressMessages(library(reticulate))
+if (reticulate::py_available()) {
+  py_packages <- c("altair==5.5.0",
+                   "matplotlib==3.10.7",
+                   "numpy==2.3.4",
+                   "pandas==2.3.3",
+                   "pathlib",
+                   "plotly",
+                   "pyarrow==21.0.0",
+                   "scikit-learn",
+                   "seaborn",
+                   "streamlit==1.51.0")
+  env_path <- file.path(getwd(), "venv")
+  if (!dir.exists(env_path)) {
+    cat(" -> Criando ambiente virtual para Python.\n")
+    supressMessages(reticulate::virtualenv_create(envname = env_path, 
+                                                  packages = py_packages))
+  } else {
+    suppressMessages(reticulate::virtualenv_install(envname = env_path, 
+                                                    packages = py_packages))
+  }
+} else {
+  stop("\n !! Erro: Python não disponível na máquina.\n")
+}
+
+# Realizando primeiro a importação dos códigos em python para evitar conflitos
 tryCatch({
   library(reticulate)
   suppressWarnings(use_virtualenv("./venv", required = TRUE))
@@ -10,6 +51,9 @@ tryCatch({
     stop("\n !! Erro: Não foi possível importar os códigos do python.\n -> Tente reiniciar o R e rode novamente (Conflito em ordem de importação)\n")
   }
 )
+
+
+# Importando bibliotecas do R e códigos em R utilizados
 
 library(here)
 library(httr)
@@ -24,6 +68,7 @@ source("variacao_renda.R")
 source("filtrar_trabalhadores.R")
 source("pareamento_stats.R")
 
+# ========== FUNÇÕES ==========
 
 last_data <- function(act_year, act_tri) {
   last_year <- act_year
@@ -128,6 +173,7 @@ generate_csvs <- function(ano_final, tri_final) {
       capture.output(calcular_variacoes(filtro, ano_final, tri_final))
     }
   }
+  ci$gerar_contagem_classes(as.integer(ultima[1]), as.integer(ultima[2]))
   cat("\n -> Arquivos para plotagem atualizados!\n")
 }
 
@@ -162,5 +208,4 @@ if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
       #ci$gerar_contagem_classes(as.integer(ultima[1]), as.integer(ultima[2]))
     }
   }
-  
 }
