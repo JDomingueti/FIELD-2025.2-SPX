@@ -45,7 +45,6 @@ tryCatch({
   lr <- reticulate::import_from_path("log_renda", path=getwd())
   fc <- reticulate::import_from_path("fixo_cluster_renda", path=getwd())
   kmc <- reticulate::import_from_path("kmeans_cluster_renda", path=getwd())
-  #ci <- reticulate::import_from_path("classes_individuos", path=getwd())
   }, 
   error = function(e) {
     stop("\n !! Erro: Não foi possível importar os códigos do python.\n -> Tente reiniciar o R e rode novamente (Conflito em ordem de importação)\n")
@@ -154,26 +153,74 @@ classify_all <- function(act_year, act_tri) {
 }
 
 generate_csvs <- function(ano_final, tri_final) {
+  ano_final <- as.integer(ano_final)
+  tri_final <- as.integer(tri_final)
+  
   filtros <- c(as.character(0:22), paste0(as.character(0:22), "D"))
   std_path <- here(getwd(), "dados_medianas_var")
-  all_files <- list.files(std_path, , full.names = FALSE)
-  found <- FALSE
+  all_files <- list.files(std_path, full.names = FALSE)
+  
   for (filtro in filtros) {
+    file_was_processed <- FALSE # controla se o arquivo foi processado
+    
     for (file in all_files) {
-      found <- grepl(paste0("medianas_variacao_renda_", filtro), file)
-      if (found) {
-        if (filtro == "21D") found <- grepl("DD.csv", file)
-        else if (grepl("D", filtro)) found <- grepl("D.csv", file)
-        else found <- grepl(".csv", file)
+      
+      # verifica se o nome base esta no dir
+      base_match <- grepl(paste0("medianas_variacao_renda_", filtro), file)
+      
+      if (base_match) {
+
+        # logica para extrair os nomes corretos (sufixos)        
+        is_exact_match <- FALSE
+        if (filtro == "21D") {
+          is_exact_match <- grepl("DD.csv", file)
+        } else if (grepl("D", filtro)) {
+          # Garante que 'D.csv' não pegue 'DD.csv'
+          is_exact_match <- grepl("D.csv", file) && !grepl("DD.csv", file) 
+        } else {
+          # Garante que '.csv' não pegue 'D.csv'
+          is_exact_match <- grepl(".csv", file, fixed = TRUE) && !grepl("D.csv", file)
+        }
+        
+        if (is_exact_match) {
+          file_was_processed <- TRUE 
+          file_path <- file.path(std_path, file)
+          
+          df <- tryCatch({
+            readr::read_csv(file_path, show_col_types = FALSE)
+          }, error = function(e) {
+            message(paste("Aviso: Erro ao ler", file, ". Sera regenerado."))
+            return(NULL)
+          })
+          
+          # verifica se o file é valido e se esta atualizado
+          if (!is.null(df) && nrow(df) > 0) {
+            last_row <- nrow(df)
+            is_updated <- (df$ano_final[last_row] == ano_final) && (df$trimestre[last_row] == tri_final)
+            
+            if (isTRUE(is_updated)) {
+              message(paste0("Arquivo ", filtro, " Ja atualizado. Pulando."))
+            } else {
+              cat(paste0("Recalculando e atualizando dados do filtro ", filtro, "\n"))
+              capture.output(calcular_variacoes(filtro, ano_final, tri_final))
+            }
+          } else {
+            cat(paste0("Arquivo inválido/vazio para ", filtro, ". Gerando novamente...\n"))
+            capture.output(calcular_variacoes(filtro, ano_final, tri_final))
+          }
+          
+          break # quebra o loop para o prox filtro
+        }
       }
-      if (found) break
     }
-    if (!found) {
-      cat(paste0("Gerando dados do filtro ", filtro, "\n"))
+    
+    # Se file_was_processed for FALSE, o arquivo não existe na pasta.
+    if (!file_was_processed) {
+      cat(paste0("Gerando dados do filtro ", filtro, " (Primeira Criação)\n"))
       capture.output(calcular_variacoes(filtro, ano_final, tri_final))
     }
   }
-  ci$gerar_contagem_classes(as.integer(ultima[1]), as.integer(ultima[2]))
+  
   cat("\n -> Arquivos para plotagem atualizados!\n")
 }
 
@@ -203,9 +250,8 @@ if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
     if (proccess %in% c("1", "4")) download_all(ultima[1], ultima[2])
     if (proccess %in% c("2", "4")) classify_all(ultima[1], ultima[2])
     if (proccess %in% c("3", "4")) {
-      gerar_contagem_classes(as.integer(ultima[1]), as.integer(ultima[2]))
       generate_csvs(ultima[1], ultima[2])
-      #ci$gerar_contagem_classes(as.integer(ultima[1]), as.integer(ultima[2]))
+      gerar_contagem_classes(as.integer(ultima[1]), as.integer(ultima[2]))
     }
   }
 }
