@@ -123,10 +123,6 @@ mesma_pessoa <- function(p1, p2, tolerancia_ano = 3) {
   cond1 <- as.numeric(p1$V2005)
   cond2 <- as.numeric(p2$V2005)
   
-  # Mapear condições textuais para códigos
-  #if (is.factor(cond1)) cond1 <- as.numeric(cond1)
-  #if (is.factor(cond2)) cond2 <- as.numeric(cond2)
-  
   # Verificar condições compatíveis no domicílio
   condicoes_compativeis <- list(
     c(1, 2, 3),  # responsável, cônjuge, união estável
@@ -277,7 +273,7 @@ classificar_individuos <- function(df_grupo) {
     
     if (tamanho_constante && n_periodos_pessoa == n_periodos) {
       # Verificar se características são idênticas
-      pessoa_chars <- df_grupo[indices_grupo, c("V2007", "V2009", "V2005", "V2003")]
+      pessoa_chars <- df_grupo[indices_grupo, c("V2007", "ano_nascimento", "V2005", "V2003")]
       if (nrow(unique(pessoa_chars)) == 1) {
         df_grupo$classe_individuo[indices_grupo] <- 1  # Classe 1
       } else {
