@@ -101,7 +101,7 @@ calcular_variacoes <- function(filtro, ano_final, trim_final) {
     
     for (ano in anos) {
       for (tri in trimestres) {
-        if ((ano == ano_final) & (tri > trim_final)): break
+        if ((ano == ano_final) & (tri > trim_final)) break
         start_ano <- ano
         start_tri <- tri
         end_ano <- ano + 1
@@ -328,9 +328,9 @@ if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
   if (ano_end <= 2012) {
     cat("Ano final reajustado para 2012.")
     ano_end <- 2012
-  } else if {
+  } else {
     cat("Ano final ajustado para o ano atual.")
-    (ano_end > ano_act) ano_end <- ano_act
+    if (ano_end > ano_act) ano_end <- ano_act
   }
   calcular_variacoes(filtro, ano_end, tri_end)
 }
