@@ -33,6 +33,7 @@ calcular_variacoes <- function(filtro, ano_final, trim_final) {
   
   nome_pasta_saida <- "dados_medianas_var"
   pasta_saida <- here(std_path, nome_pasta_saida)
+  if (!dir.exists(pasta_saida)) dir.create(pasta_saida)
   
   # Caminho base onde estão os arquivos parquet
   pasta_base <- here(std_path,"PNAD_data", "Pareamentos")
@@ -328,9 +329,9 @@ if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
   if (ano_end <= 2012) {
     cat("Ano final reajustado para 2012.")
     ano_end <- 2012
-  } else {
+  } else if (ano_end > ano_act) {
     cat("Ano final ajustado para o ano atual.")
-    if (ano_end > ano_act) ano_end <- ano_act
+    ano_end <- ano_act
   }
   calcular_variacoes(filtro, ano_end, tri_end)
 }
