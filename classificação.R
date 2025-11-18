@@ -421,16 +421,16 @@ classificar_painel_pnadc <- function(arquivo_pqt) {
   
   # Salvar resultados
   
-  #arquivo_saida <- gsub("\\.rds$", "_classificado.rds", arquivo_rds)
+  
   arquivo_saida <- gsub("\\.parquet$", "_classificado.parquet", arquivo_pqt)
-  #saveRDS(resultado_final, arquivo_saida)
+  
   write_parquet(resultado_final, arquivo_saida)
   cat("\nResultados salvos em:", arquivo_saida, "\n")
   
   # Salvar também resumo de grupos domésticos
-  #arquivo_grupos <- gsub("\\.rds$", "_grupos_domesticos.rds", arquivo_rds)
+  
   arquivo_grupos <- gsub("\\.parquet$", "_grupos_domesticos.parquet", arquivo_pqt)
-  #saveRDS(grupos_domesticos, arquivo_grupos)
+  
   write_parquet(grupos_domesticos, arquivo_grupos)
   cat("Classificação de grupos domésticos salva em:", arquivo_grupos, "\n")
   
@@ -442,10 +442,6 @@ classificar_painel_pnadc <- function(arquivo_pqt) {
   ))
 }
 
-#resultado <- classificar_painel_pnadc(paste0("pessoas_", 
-#                                             periodos_analise$ano_inicio, periodos_analise$tri_inicio,
-#                                             "_", periodos_analise$ano_fim, periodos_analise$tri_fim,
-#                                             ".rds"))
 if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
   periodos_analise = obter_periodos() # obtendo periodos desejados pelo usuario
   colunas_id_func(periodos_analise)

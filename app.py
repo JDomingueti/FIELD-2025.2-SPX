@@ -100,7 +100,7 @@ def load_data_variacao_nula(base_path):
 def load_data_classes_pareamento(base_path):
     """
     Carrega e transforma os dados de percentual das classes de pareamento
-    para um formato "longo", pronto para o Altair.
+    para um formato "longo".
     """
     file_path = f"{base_path}/contagem_classe_pareamento.csv"
     try:
@@ -112,7 +112,7 @@ def load_data_classes_pareamento(base_path):
     # Criar a coluna 'periodo' para o eixo X (ex: "2012.1")
     df['periodo'] = df['ano'].astype(str) + '.' + df['trimestre'].astype(str)
     
-    # Definir as colunas que são "percentuais"
+    # Definir as colunas que são percentuais
     value_vars = [f'classe {i}' for i in range(1, 6)]
     
     # Manter colunas de identificação
