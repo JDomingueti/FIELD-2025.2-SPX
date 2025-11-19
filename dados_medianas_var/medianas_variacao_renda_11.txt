@@ -48,3 +48,4 @@ Mediana da variação de renda (2023_3 -> 2024_3): 29.4%
 Mediana da variação de renda (2023_4 -> 2024_4): 32.0%
 Mediana da variação de renda (2024_1 -> 2025_1): 29.0%
 Mediana da variação de renda (2024_2 -> 2025_2): 33.2%
+Mediana da variação de renda (2024_3 -> 2025_3): 30.7%
