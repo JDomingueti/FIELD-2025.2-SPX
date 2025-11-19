@@ -7,6 +7,28 @@ library(tidyr)
 pasta_base <- "PNAD_data/Pareamentos"
 pasta_saida <- "dados_medianas_var"
 
+#' @title Calcula a Proporção de Indivíduos por Classe de Pareamento
+#'
+#' @description
+#' Carrega os dados de painel classificados da PNAD Contínua para um determinado
+#' período de transição (T1 para T5) e calcula a proporção de indivíduos
+#' pertencentes a cada uma das 5 classes de pareamento (confiabilidade).
+#'
+#' @param ano O ano inicial (T1) do período de pareamento (e.g., 2012).
+#' @param tri O trimestre inicial (T1) do período de pareamento (e.g., 1).
+#'
+#' @return
+#' Um \code{tibble} com uma linha contendo:
+#' \itemize{
+#'   \item \code{ano}, \code{trimestre}: O período inicial.
+#'   \item \code{classe 1} a \code{classe 5}: A proporção de indivíduos em cada classe (0 a 1).
+#'   \item \code{total_individuos}: O número total de indivíduos pareados na amostra.
+#' }
+#' Retorna \code{NULL} se o arquivo não for encontrado ou houver erro de leitura.
+#'
+#' @importFrom arrow read_parquet
+#' @importFrom dplyr tibble
+#' @importFrom glue glue
 classes_pareamento_individuos <- function(ano, tri) {
   ###
   ###Conta quantos individuos de cada classe (1 a 5) existem em cada trimestre e em cada ano.
@@ -69,6 +91,30 @@ classes_pareamento_individuos <- function(ano, tri) {
   
 }
 
+#' @title Calcula a Proporção de Domicílios com Apenas 1 Grupo Doméstico
+#'
+#' @description
+#' Carrega os dados de pareamento e calcula a proporção de domicílios que contêm
+#' apenas um grupo doméstico (\code{n_grupos == 1}). Este é um indicador da
+#' estabilidade da composição familiar/domiciliar ao longo das 5 entrevistas.
+#' O cálculo é feito a nível de domicílio, usando a coluna \code{domicilio_id}
+#' para garantir unicidade.
+#'
+#' @param ano O ano inicial do período de pareamento.
+#' @param tri O trimestre inicial do período de pareamento.
+#'
+#' @return
+#' Um \code{tibble} com uma linha contendo:
+#' \itemize{
+#'   \item \code{ano}, \code{trimestre}: O período inicial.
+#'   \item \code{proporcao_1_grupo}: A proporção de domicílios com \code{n_grupos == 1} (0 a 1).
+#'   \item \code{total_domicilios}: O número total de domicílios únicos na amostra.
+#' }
+#' Retorna \code{NULL} se o arquivo não for encontrado ou houver erro de leitura.
+#'
+#' @importFrom arrow read_parquet
+#' @importFrom dplyr tibble distinct
+#' @importFrom glue glue
 prop_grupos_domesticos <- function(ano, tri) {
   ###
   ###Calcula a proporção de domicilios com 1 grupo doméstico (coluna n_grupos == 1).
@@ -123,7 +169,32 @@ prop_grupos_domesticos <- function(ano, tri) {
   return(row_data)
 }
 
-
+#' @title Gera Arquivos CSV de Estatísticas de Qualidade do Pareamento
+#'
+#' @description
+#' Itera sobre todos os anos e trimestres disponíveis (de 2012 até o limite
+#' definido pelos argumentos) para gerar duas métricas de qualidade do pareamento:
+#' 1. Proporção das classes de indivíduos (\code{classes_pareamento_individuos}).
+#' 2. Proporção de domicílios com 1 grupo doméstico (\code{prop_grupos_domesticos}).
+#' Os resultados são agregados e salvos em arquivos CSV na pasta de saída.
+#'
+#' @param ultimo_ano_disponivel O ano mais recente (T5) para o qual existem dados
+#'   completos (e.g., 2024 para painéis terminando em 2023.4).
+#' @param ultimo_tri_disponivel O trimestre mais recente (T5) para o qual existem
+#'   dados completos.
+#'
+#' @return
+#' Invisível. Cria ou atualiza dois arquivos CSV na pasta \code{pasta_saida}:
+#' \itemize{
+#'   \item \code{contagem_classe_pareamento.csv}
+#'   \item \code{contagem_grupos_domesticos.csv}
+#' }
+#'
+#' @seealso \code{\link{classes_pareamento_individuos}}, \code{\link{prop_grupos_domesticos}}
+#'
+#' @importFrom dplyr bind_rows
+#' @importFrom readr write_csv
+#' @importFrom glue glu
 gerar_estatisticas_pareamento <- function(ultimo_ano_disponivel, ultimo_tri_disponivel) {
   # Função que itera sobre os anos e trimestres baseado nos limites dinamicos e gera o CSV final.
   

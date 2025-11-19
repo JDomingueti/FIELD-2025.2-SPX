@@ -27,6 +27,35 @@ grupo_ocp <- list(
   "3" = c(5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35, 36, 37, 38, 39) # Indústria
 )
 
+#' @title Calcula a Mediana (ou outras estatísticas) da Variação de Renda por Filtro
+#'
+#' @description
+#' Itera sobre todos os painéis de pareamento disponíveis (de 2012 até \code{ano_final}/\code{trim_final}),
+#' aplica um filtro específico (e.g., sexo, raça, ocupação, se deflacionado),
+#' e calcula a variação percentual da renda do indivíduo da primeira para a quinta entrevista.
+#' A estatística central (mediana, média, ou quartis) da variação é então salva em arquivos CSV e TXT.
+#'
+#' @param filtro Código do filtro a ser aplicado (e.g., "0" para Base, "1D" para Trabalhador de App deflacionado).
+#' @param ano_final O ano do último trimestre a ser incluído no cálculo do painel (ano de T5).
+#' @param trim_final O trimestre final a ser incluído no cálculo do painel (trimestre de T5).
+#'
+#' @return
+#' Invisível. Executa side-effects:
+#' \itemize{
+#'   \item Cria/atualiza \code{medianas_variacao_renda_[filtro].csv} e \code{..._.txt} na pasta \code{dados_medianas_var}.
+#'   \item Se \code{filtro} for "0", cria \code{estatisticas_variacao_nula.csv}.
+#' }
+#'
+#' @details
+#' A variação de renda é calculada apenas para indivíduos nas classes de pareamento 1 a 3.
+#' O parâmetro \code{filtro} determina a coluna de renda usada (\code{VD4019} ou \code{VD4019_deflat})
+#' e o subgrupo populacional (ou estatística) analisado.
+#'
+#' @importFrom dplyr filter mutate group_by summarise pivot_wider rename case_when
+#' @importFrom arrow read_parquet
+#' @importFrom here here
+#' @importFrom readr write_csv
+#' @importFrom scales percent
 calcular_variacoes <- function(filtro, ano_final, trim_final) {
   paste0("Filtro escolhido:", filtro)
   std_path <- getwd()

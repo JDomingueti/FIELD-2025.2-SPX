@@ -5,7 +5,19 @@ library(arrow)
 source("colunas_id.R")
 source("deflator.R")
 
-# ================== AJUSTE DE IDADE ==================
+#' @title Ajusta a Idade com Tolerância para Estimativa de Ano de Nascimento
+#'
+#' @description
+#' Aplica um ajuste aleatório de $\pm 1$ ano para idades que terminam em 0 ou 5
+#' (característico de arredondamento em declarações) para mitigar o viés de dígitos
+#' preferidos antes de estimar o ano de nascimento.
+#'
+#' @param idade Um vetor numérico de idades (V2009).
+#'
+#' @return
+#' Um vetor numérico com as idades ajustadas. Se a idade for NA, retorna NA.
+#'
+#' @importFrom dplyr if_else
 ajustar_idade_estimativa <- function(idade) {
   if_else(is.na(idade),
           NA_integer_,
@@ -17,8 +29,27 @@ ajustar_idade_estimativa <- function(idade) {
         )
 }
 
-# ================== ESTIMAR ANO DE NASCIMENTO ==================
-# Estima o ano de nascimento inicial com base na idade e ano do painel
+#' @title Estima o Ano de Nascimento Inicial
+#'
+#' @description
+#' Calcula o ano de nascimento para cada registro de pessoa, utilizando a informação
+#' direta de ano de nascimento (V20082) quando disponível, ou estimando-o
+#' a partir do ano de início do painel e da idade ajustada (\code{\link{ajustar_idade_estimativa}}).
+#'
+#' @param df O dataframe de pessoas no formato longo (painel).
+#' @param ano_inicio_painel O ano da primeira entrevista (T1) do painel.
+#'
+#' @return
+#' O dataframe original (\code{df}) com colunas adicionais:
+#' \itemize{
+#'   \item \code{idade_ignorada}: Booleano indicando se a idade é NA ou >= 999.
+#'   \item \code{idade_corrigida}: Idade ajustada pela função de tolerância.
+#'   \item \code{ano_nascimento}: Ano de nascimento final (ou estimado).
+#'   \item \code{ano_nascimento_estimado_tmp}: Ano de nascimento estimado inicial (usado como alvo para imputação).
+#' }
+#'
+#' @importFrom dplyr mutate if_else case_when
+#' @seealso \code{\link{ajustar_idade_estimativa}}
 estimar_ano_nascimento_inicial <- function(df, ano_inicio_painel) {
   # Assumindo que V2009 é a idade e que valores como 999 indicam idade ignorada
   df <- df %>%
@@ -36,8 +67,24 @@ estimar_ano_nascimento_inicial <- function(df, ano_inicio_painel) {
   return(df)
 }
 
-# ================== IMPUTAÇÃO DE NASCIMENTO COM DOADORES ==================
-# Imputa o ano de nascimento para registros ignorados usando doadores
+
+#' @title Imputa o Ano de Nascimento Usando Doadores dentro do Domicílio
+#'
+#' @description
+#' Para pessoas com ano de nascimento faltante (\code{ano_nascimento == NA}),
+#' procura registros "doadores" (não-NA) dentro do mesmo domicílio que satisfaçam
+#' critérios de compatibilidade (mesmo sexo, diferença de idade estimada <= 3 anos,
+#' e condições no domicílio compatíveis). O melhor doador é aquele com a menor
+#' diferença absoluta entre seu \code{ano_nascimento} e o \code{ano_nascimento_estimado_tmp}
+#' do indivíduo alvo.
+#'
+#' @param df_domicilio Um dataframe de pessoas, agrupado por domicílio.
+#'
+#' @return
+#' O dataframe \code{df_domicilio} com a coluna \code{ano_nascimento} preenchida
+#' por imputação onde possível.
+#'
+#' @importFrom dplyr filter select rowwise ungroup mutate arrange slice
 imputar_ano_nascimento_doador <- function(df_domicilio) {
   doadoras <- df_domicilio %>% filter(!is.na(ano_nascimento))
   recebedoras_indices <- which(is.na(df_domicilio$ano_nascimento))
@@ -102,12 +149,41 @@ imputar_ano_nascimento_doador <- function(df_domicilio) {
   return(select(df_domicilio, -ano_nascimento_estimado_tmp))
 }
 
-# Função para criar chaves de identificação
+#' @title Cria Chave de Identificação Composta
+#'
+#' @description
+#' Concatena variáveis essenciais para a identificação única de uma pessoa (Sexo,
+#' Ano de Nascimento, Condição no Domicílio e Número de Ordem) em uma única chave.
+#'
+#' @param sexo Variável de sexo (V2007).
+#' @param ano_nascimento Ano de nascimento (imputado ou declarado).
+#' @param condicao Condição no domicílio (V2005).
+#' @param ordem Número de ordem do indivíduo no domicílio (V2003).
+#'
+#' @return
+#' Uma string única composta pelas variáveis, separadas por "_".
 criar_chave_pessoa <- function(sexo, ano_nascimento, condicao, ordem) {
   paste(sexo, ano_nascimento, condicao, ordem, sep = "_")
 }
 
-# Função para verificar se duas pessoas são potencialmente a mesma
+#' @title Verifica se Duas Pessoas são Potencialmente a Mesma Pessoa em Entrevistas Diferentes
+#'
+#' @description
+#' Implementa os critérios de pareamento de indivíduos entre dois registros de entrevistas
+#' (p1 e p2). Os critérios incluem:
+#' \itemize{
+#'   \item Mesmo sexo (V2007).
+#'   \item Tolerância máxima de 3 anos na diferença de \code{ano_nascimento}.
+#'   \item Compatibilidade da Condição no Domicílio (V2005), verificando se
+#'         ambas pertencem ao mesmo grupo de parentesco compatível (e.g., responsável/cônjuge).
+#' }
+#'
+#' @param p1 Um registro (linha) do dataframe de pessoas.
+#' @param p2 Um registro (linha) do dataframe de pessoas.
+#' @param tolerancia_ano Tolerância máxima permitida na diferença do ano de nascimento (default é 3).
+#'
+#' @return
+#' Um valor booleano: \code{TRUE} se as duas pessoas são consideradas as mesmas, \code{FALSE} caso contrário.
 mesma_pessoa <- function(p1, p2, tolerancia_ano = 3) {
   # Critérios básicos: mesmo sexo
   if (as.character(p1$V2007) != as.character(p2$V2007)) return(FALSE)
@@ -141,6 +217,28 @@ mesma_pessoa <- function(p1, p2, tolerancia_ano = 3) {
   return(cond1 == cond2)
 }
 
+
+#' @title Classifica a Estrutura do Grupo Doméstico dentro de um Domicílio
+#'
+#' @description
+#' Identifica os conjuntos de entrevistas (períodos) que estão ligados por pelo
+#' menos uma pessoa em comum (\code{\link{mesma_pessoa}}) dentro do mesmo domicílio.
+#' Grupos de entrevistas ligados formam um "grupo doméstico". Isso detecta se
+#' houve uma descontinuidade ou substituição completa de moradores ao longo dos 5 trimestres.
+#'
+#' @param df_domicilio Um dataframe de pessoas, contendo todas as entrevistas
+#'   para um único \code{domicilio_id}.
+#'
+#' @return
+#' Um dataframe resumido com uma linha por grupo doméstico, contendo:
+#' \itemize{
+#'   \item \code{grupo_domestico_id}: ID sequencial do grupo.
+#'   \item \code{n_grupos}: Número total de grupos domésticos encontrados no domicílio.
+#'   \item \code{tipo_grupo}: "único" ou "múltiplos".
+#' }
+#'
+#' @importFrom dplyr distinct
+#' @seealso \code{\link{mesma_pessoa}}
 classificar_grupos_domesticos <- function(df_domicilio) {
   # Verificar se o dataframe está vazio ou não tem a coluna necessária
   if (nrow(df_domicilio) == 0 || !"periodo" %in% names(df_domicilio)) {
@@ -220,6 +318,25 @@ classificar_grupos_domesticos <- function(df_domicilio) {
 
 # ================== CLASSIFICAÇÃO DE INDIVÍDUOS ==================
 
+#' @title Classifica Indivíduos em Classes de Pareamento (1 a 5)
+#'
+#' @description
+#' Recebe um dataframe de pessoas pertencente a um único Grupo Doméstico e atribui
+#' um \code{individuo_id} e uma \code{classe_individuo} (1 a 5) a cada registro,
+#' baseando-se na consistência das informações (Sexo, Ano de Nascimento, Condição
+#' no Domicílio, Número de Ordem) e na presença ao longo dos 5 períodos de entrevista.
+#'
+#' @param df_grupo Um dataframe de pessoas, pertencente a um único grupo doméstico.
+#'
+#' @return
+#' O dataframe original (\code{df_grupo}) com as colunas adicionais:
+#' \itemize{
+#'   \item \code{individuo_id}: ID único para a pessoa dentro do grupo doméstico.
+#'   \item \code{classe_individuo}: Nível de confiança do pareamento (1=Mais confiável, 5=Menos confiável).
+#' }
+#'
+#' @importFrom dplyr arrange count rowwise mutate
+#' @seealso \code{\link{mesma_pessoa}}
 classificar_individuos <- function(df_grupo) {
   df_grupo <- df_grupo %>% arrange(periodo)
   periodos <- unique(df_grupo$periodo)
@@ -302,6 +419,31 @@ classificar_individuos <- function(df_grupo) {
 
 # ================== FUNÇÃO PRINCIPAL ==================
 
+#' @title Função Principal: Executa o Processo Completo de Classificação do Painel PNADC
+#'
+#' @description
+#' Carrega o arquivo Parquet de pessoas (painel raw), filtra os domicílios completos
+#' (presentes nas 5 entrevistas), estima e imputa o ano de nascimento, classifica
+#' os grupos domésticos e, finalmente, classifica os indivíduos (para domicílios
+#' com 1 grupo doméstico), atribuindo o ID de pareamento e a classe de confiabilidade.
+#' Aplica o deflator e salva os resultados em novos arquivos Parquet.
+#'
+#' @param arquivo_pqt Caminho completo para o arquivo Parquet de pessoas (painel não classificado).
+#'
+#' @return
+#' Uma lista contendo:
+#' \itemize{
+#'   \item \code{dados_classificados}: Dataframe final de indivíduos classificados.
+#'   \item \code{grupos_domesticos}: Dataframe de classificação dos grupos domésticos por domicílio.
+#'   \item \code{resumo_domicilios}: Tabela de distribuição dos grupos domésticos.
+#'   \item \code{resumo_individuos}: Tabela de distribuição das classes de indivíduos.
+#' }
+#'
+#' @importFrom arrow read_parquet write_parquet
+#' @importFrom dplyr filter count pull mutate group_by ungroup left_join select
+#' @importFrom here here
+#' @seealso \code{\link{estimar_ano_nascimento_inicial}}, \code{\link{imputar_ano_nascimento_doador}},
+#'   \code{\link{classificar_grupos_domesticos}}, \code{\link{classificar_individuos}}, \code{\link{apply_deflator_parquet}}
 classificar_painel_pnadc <- function(arquivo_pqt) {
   # Carregar dados
   cat("Carregando dados do arquivo:", arquivo_pqt, "\n")

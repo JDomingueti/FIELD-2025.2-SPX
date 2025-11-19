@@ -68,7 +68,25 @@ source("filtrar_trabalhadores.R")
 source("pareamento_stats.R")
 
 # ========== FUNÇÕES ==========
-
+#' @title Obtém a data mais recente dos microdados da PNAD Contínua
+#'
+#' @description
+#' Verifica o servidor FTP do IBGE para identificar o último ano e trimestre
+#' para o qual os microdados da PNAD Contínua estão disponíveis.
+#' A busca é feita iterativamente, voltando um trimestre/ano até encontrar
+#' o último arquivo disponível.
+#'
+#' @param act_year Ano atual (usado como ponto de partida para a busca).
+#' @param act_tri Trimestre atual (usado como ponto de partida para a busca).
+#'
+#' @return
+#' Um vetor numérico de dois elementos: \code{c(ultimo_ano, ultimo_trimestre)}.
+#' Retorna \code{NULL} se não houver conexão com a internet ou se o servidor do IBGE
+#' estiver indisponível.
+#'
+#' @examples
+#' # last_available <- last_data(2025, 1)
+#' # print(last_available) # Exemplo: c(2024, 4)
 last_data <- function(act_year, act_tri) {
   last_year <- act_year
   last_tri <- act_tri
@@ -98,6 +116,21 @@ last_data <- function(act_year, act_tri) {
   return(c(last_year, last_tri))
 }
 
+#' @title Baixa todos os microdados da PNAD Contínua (2012 ao atual)
+#'
+#' @description
+#' Itera sobre todos os anos de 2012 até o ano e trimestre mais recente disponível
+#' e baixa os arquivos Parquet correspondentes.
+#' Se o arquivo já existir na pasta 'PNAD_data/[ano]', o download é ignorado.
+#' A função depende da função interna 'download_parquet' (definida em 'download_parquets.R').
+#'
+#' @param act_year O ano mais recente com dados disponíveis (retornado por \code{last_data}).
+#' @param act_tri O trimestre mais recente com dados disponíveis (retornado por \code{last_data}).
+#'
+#' @return
+#' Invisível. Cria a estrutura de diretórios e salva os arquivos Parquet.
+#'
+#' @seealso \code{\link{download_parquet}}
 download_all <- function(act_year, act_tri) {
   std_path <- here(getwd(), "PNAD_data")
   for (year in 2012:act_year) {
@@ -115,6 +148,25 @@ download_all <- function(act_year, act_tri) {
   cat("\n -> Todos os dados estão baixados!\n")
 }
 
+#' @title Aplica Pós-Processamento e Classificação Final aos Dados Pareados
+#'
+#' @description
+#' Realiza uma série de etapas de pós-processamento e classificação nos dados
+#' de painel de pessoas recém-pareados e classificados.
+#' As etapas incluem: aplicação do deflator, classificação de trabalhadores de
+#' aplicativo e filtragem de 'job switchers' e 'carteira assinada'.
+#' Em seguida, chama scripts Python para clustering e log de renda.
+#'
+#' @param ano Ano inicial do painel (e.g., 2012 para o painel 2012.1 - 2013.1).
+#' @param tri Trimestre inicial do painel.
+#'
+#' @return
+#' Invisível. Sobrescreve o arquivo Parquet classificado com as colunas
+#' de deflator e indicadores de filtros/clusters adicionais. Executa side-effects
+#' dos scripts Python.
+#'
+#' @seealso \code{\link{apply_deflator_parquet}}, \code{\link{classificar_trabalhador_app}},
+#'   \code{\link{filtrar_job_switcher}}, \code{\link{filtrar_carteira_assinada}}
 pos_processing <- function(ano, tri) {
   path <- here(getwd(), "PNAD_data", "Pareamentos", paste0("pessoas_", ano, tri, '_', ano+1, tri, "_classificado.parquet"))
   df <- read_parquet(path)
@@ -131,7 +183,25 @@ pos_processing <- function(ano, tri) {
   })
 }
 
-
+#' @title Processa e Classifica Todos os Painéis de Pareamento
+#'
+#' @description
+#' Itera sobre todos os trimestres de 2012 até o último trimestre disponível
+#' (ano_fim = act_year, tri_fim = act_tri) para garantir que todos os painéis
+#' de pessoas:
+#' 1. Sejam agrupados ('colunas_id_func').
+#' 2. Sejam classificados ('classificar_painel_pnadc').
+#' 3. Recebam o pós-processamento ('pos_processing').
+#'
+#' @param act_year O ano mais recente com dados disponíveis (usado como limite superior).
+#' @param act_tri O trimestre mais recente com dados disponíveis (usado como limite superior).
+#'
+#' @return
+#' Invisível. Cria e/ou atualiza todos os arquivos Parquet na pasta
+#' 'PNAD_data/Pareamentos'.
+#'
+#' @seealso \code{\link{colunas_id_func}}, \code{\link{classificar_painel_pnadc}},
+#'   \code{\link{pos_processing}}
 classify_all <- function(act_year, act_tri) {
   std_path <- here(getwd(), "PNAD_data", "Pareamentos")
   for (year in 2012:(act_year-1)) {
@@ -152,6 +222,23 @@ classify_all <- function(act_year, act_tri) {
   cat(" -> Todos os arquivos completamente atualizados!\n")
 }
 
+#' @title Gera e Atualiza Arquivos CSV de Variação de Renda por Filtro
+#'
+#' @description
+#' Itera sobre uma lista de filtros (e.g., "_0", "_1D", etc.) e verifica se
+#' o arquivo CSV correspondente na pasta 'dados_medianas_var' está atualizado.
+#' Se o arquivo não existir, estiver desatualizado ou for inválido,
+#' a função \code{calcular_variacoes} é chamada para gerar ou recalcular o CSV.
+#'
+#' @param ano_final O ano do último trimestre a ser incluído no cálculo
+#'   da variação de renda (ano_fim do painel).
+#' @param tri_final O trimestre do último trimestre a ser incluído no cálculo
+#'   da variação de renda (tri_fim do painel).
+#'
+#' @return
+#' Invisível. Cria ou atualiza os arquivos CSV de variação de renda.
+#'
+#' @seealso \code{\link{calcular_variacoes}}
 generate_csvs <- function(ano_final, tri_final) {
   ano_final <- as.integer(ano_final)
   tri_final <- as.integer(tri_final)
