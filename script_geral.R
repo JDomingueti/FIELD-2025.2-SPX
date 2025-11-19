@@ -1,53 +1,54 @@
 # Preparação do ambiente local para todos os códigos
 R_packages <- c("arrow",
-                        "dplyr",
-                        "ggplot2",
-                        "here",
-                        "httr",
-                        "PNADcIBGE",
-                        "projmgr",
-                        "purrr",
-                        "RCurl",
-                        "readxl",
-                        "reticulate",
-                        "scales",
-                        "tidyr")
+                "dplyr",
+                "ggplot2",
+                "here",
+                "httr",
+                "PNADcIBGE",
+                "projmgr",
+                "purrr",
+                "RCurl",
+                "readxl",
+                "reticulate",
+                "scales",
+                "tidyr")
 R_missing <- setdiff(R_packages, rownames(installed.packages()))
 if (length(R_missing) > 0) {
   cat(" -> Instalando pacotes do R que estão em falta...\n")
   capture.output(install.packages(R_missing))
 }
-library(reticulate)
-if (reticulate::py_available(initialize = TRUE)) {
-  py_packages <- c("altair",
-                   "matplotlib",
-                   "numpy",
-                   "pandas",
-                   "pathlib",
-                   "plotly",
-                   "pyarrow",
-                   "scikit-learn",
-                   "seaborn",
-                   "streamlit")
-  env_path <- file.path(getwd(), "venv")
-  if (!dir.exists(env_path)) {
-    cat(" -> Criando ambiente virtual para Python.\n")
-    reticulate::virtualenv_create(envname = env_path, 
-                                              packages = py_packages)
-  } else {
-    python_missing <- setdiff(py_packages, reticulate::py_list_packages()$package)
-    if (length(python_missing) > 0) {
-      cat(" -> Instalando pacotes do Python em falta...\n")
-      reticulate::virtualenv_install(envname = env_path, 
-                                     packages = python_missing)
-    }
-  }
-  capture.output(reticulate::use_virtualenv(virtualenv = env_path, 
-                                            required = TRUE))
-} else {
-  stop("\n !! Erro: Python não disponível na máquina.\n")
-}
 
+library(reticulate)
+tryCatch({
+  capture.output(py_config())
+}, error = function(e) {
+  stop(" -> Não foi encontrada uma versão de Python devidamente instalada. Por favor, instale o Python antes de prosseguir.\n")
+})
+py_packages <- c("altair",
+                 "matplotlib",
+                 "numpy",
+                 "pandas",
+                 "pathlib",
+                 "plotly",
+                 "pyarrow",
+                 "scikit-learn",
+                 "seaborn",
+                 "streamlit")
+env_path <- file.path(getwd(), "venv")
+if (!dir.exists(env_path)) {
+  cat(" -> Criando ambiente virtual para Python.\n")
+  reticulate::virtualenv_create(envname = env_path, 
+                                packages = py_packages)
+} else {
+  python_missing <- setdiff(py_packages, reticulate::py_list_packages()$package)
+  if (length(python_missing) > 0) {
+    cat(" -> Instalando pacotes do Python em falta...\n")
+    reticulate::virtualenv_install(envname = env_path, 
+                                   packages = python_missing)
+  }
+}
+capture.output(reticulate::use_virtualenv(virtualenv = env_path, 
+                                          required = TRUE))
 
 # Realizando primeiro a importação dos códigos em python para evitar conflitos
 tryCatch({
