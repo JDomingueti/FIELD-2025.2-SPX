@@ -19,11 +19,6 @@ if (length(R_missing) > 0) {
 }
 
 library(reticulate)
-tryCatch({
-  capture.output(py_config())
-}, error = function(e) {
-  stop(" -> Não foi encontrada uma versão de Python devidamente instalada. Por favor, instale o Python antes de prosseguir.\n")
-})
 py_packages <- c("altair",
                  "matplotlib",
                  "numpy",
