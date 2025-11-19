@@ -12,36 +12,45 @@ R_packages <- c("arrow",
                         "reticulate",
                         "scales",
                         "tidyr")
-suppressMessages(install_packages(setdfiff(R_packages, rownames(installed.packages()))))
-suppressMessages(library(reticulate))
-if (reticulate::py_available()) {
-  py_packages <- c("altair==5.5.0",
-                   "matplotlib==3.10.7",
-                   "numpy==2.3.4",
-                   "pandas==2.3.3",
+R_missing <- setdiff(R_packages, rownames(installed.packages()))
+if (length(R_missing) > 0) {
+  cat(" -> Instalando pacotes do R que estão em falta...\n")
+  capture.output(install.packages(R_missing))
+}
+library(reticulate)
+if (reticulate::py_available(initialize = TRUE)) {
+  py_packages <- c("altair",
+                   "matplotlib",
+                   "numpy",
+                   "pandas",
                    "pathlib",
                    "plotly",
-                   "pyarrow==21.0.0",
+                   "pyarrow",
                    "scikit-learn",
                    "seaborn",
-                   "streamlit==1.51.0")
+                   "streamlit")
   env_path <- file.path(getwd(), "venv")
   if (!dir.exists(env_path)) {
     cat(" -> Criando ambiente virtual para Python.\n")
-    supressMessages(reticulate::virtualenv_create(envname = env_path, 
-                                                  packages = py_packages))
+    reticulate::virtualenv_create(envname = env_path, 
+                                              packages = py_packages)
   } else {
-    suppressMessages(reticulate::virtualenv_install(envname = env_path, 
-                                                    packages = py_packages))
+    python_missing <- setdiff(py_packages, reticulate::py_list_packages()$package)
+    if (length(python_missing) > 0) {
+      cat(" -> Instalando pacotes do Python em falta...\n")
+      reticulate::virtualenv_install(envname = env_path, 
+                                     packages = python_missing)
+    }
   }
+  capture.output(reticulate::use_virtualenv(virtualenv = env_path, 
+                                            required = TRUE))
 } else {
   stop("\n !! Erro: Python não disponível na máquina.\n")
 }
 
+
 # Realizando primeiro a importação dos códigos em python para evitar conflitos
 tryCatch({
-  library(reticulate)
-  suppressWarnings(use_virtualenv("./venv", required = TRUE))
   lr <- reticulate::import_from_path("log_renda", path=getwd())
   fc <- reticulate::import_from_path("fixo_cluster_renda", path=getwd())
   kmc <- reticulate::import_from_path("kmeans_cluster_renda", path=getwd())
@@ -307,7 +316,7 @@ generate_csvs <- function(ano_final, tri_final) {
       capture.output(calcular_variacoes(filtro, ano_final, tri_final))
     }
   }
-  
+  gerar_estatisticas_pareamento(ano_final, tri_final)
   cat("\n -> Arquivos para plotagem atualizados!\n")
 }
 
@@ -328,7 +337,7 @@ if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
   
   repeat {
     cat("\n -> Escolha o processo a ser realizado:\n")
-    proccess <- readline(" --> : ")
+    proccess <- readline(" --> ")
     if (proccess == "*") break
     else if (!(proccess %in% c("1", "2", "3", "4"))) {
       cat(" -> Processo inexistente. Escolha novamente.\n")
@@ -336,9 +345,6 @@ if ((sys.nframe() == 0) | (interactive() & sys.nframe() %/% 4 == 1)) {
     }
     if (proccess %in% c("1", "4")) download_all(ultima[1], ultima[2])
     if (proccess %in% c("2", "4")) classify_all(ultima[1], ultima[2])
-    if (proccess %in% c("3", "4")) {
-      generate_csvs(ultima[1], ultima[2])
-      gerar_estatisticas_pareamento(as.integer(ultima[1]), as.integer(ultima[2]))
-    }
+    if (proccess %in% c("3", "4")) generate_csvs(ultima[1], ultima[2])
   }
 }
