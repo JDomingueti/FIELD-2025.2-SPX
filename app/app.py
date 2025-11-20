@@ -69,7 +69,7 @@ deflator_suffix = {
 
 # Caminho base para os arquivos CSV
 # Ajuste este caminho se seus arquivos CSV estiverem em outro lugar
-arquivo_base = "./dados_medianas_var"
+arquivo_base = "../dados_medianas_var"
 
 @st.cache_data
 def load_data(suffix):
