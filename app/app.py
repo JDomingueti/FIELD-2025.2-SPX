@@ -3,6 +3,7 @@ import pandas as pd
 import altair as alt
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+from pathlib import Path
 
 st.set_page_config(page_title="Wage Tracker", layout="wide")
 
@@ -67,9 +68,8 @@ deflator_suffix = {
     "Não": ""
 }
 
-# Caminho base para os arquivos CSV
-# Ajuste este caminho se seus arquivos CSV estiverem em outro lugar
-arquivo_base = "../dados_medianas_var"
+DATA_DIR = Path("/data")
+arquivo_base = DATA_DIR
 
 @st.cache_data
 def load_data(suffix):
