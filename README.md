@@ -3,9 +3,10 @@
 
 #### Integrantes: Bernardo Quintella, Jean Gabriel Domingueti e Sofia Monteiro
 
-O projeto tem como objetivo a análise e tratamento de microdados coletados pela PNAD contínua, visando a geração de estatísticas de maior eficácia na avaliação e previsão no mercado de trabalho brasileiro.
+O projeto desenvolve um sistema completo capaz de coletar, tratar, classificar e visualizar indicadores derivados dos microdados da PNAD Contínua, oferecendo um retrato mais claro e responsivo das dinâmicas do mercado de trabalho brasileiro. A solução integra processamento intenso de dados com uma interface leve, permitindo atualização periódica e visualização imediata.
 
-#### Etapas
+
+### Etapas
 
 O desenvolveimento envolveu a realização das seguintes etapas:
 
@@ -15,11 +16,11 @@ O desenvolveimento envolveu a realização das seguintes etapas:
  - Geração de Dados de Mediana de Variação
  - Vizualização
    
-#### Funcionalidades
+### Funcionalidades
 - **Atualização dos dados (`update`)** – baixa e processa quatro trimestres da PNAD utilizando R e Python, gerando cerca de 50 arquivos CSV limpos e leves
 -  **Execução da aplicação (`run`)** – uma interface Streamlit que lê esses CSVs e exibe análises e gráficos interativos.
 
-#### Estrutura do Projeto 
+### 📁 Estrutura do Projeto 
 ```bash
 FIELD-2025.2-SPX/
 │
@@ -41,13 +42,13 @@ FIELD-2025.2-SPX/
 ├── docker-compose.yml
 └── README.md
 ```
-## Rodar o Projeto com Docker Compose
+### Rodar o Projeto com Docker Compose
 
 O projeto utiliza **profiles** no Docker Compose para separar a etapa pesada de processamento da etapa leve de visualização.
 
 ---
 
-#### Pré-processamento dos dados (`update`)
+#### 🔧 Pré-processamento dos dados (`update`)
 
 Em caso de lançamento de novos dados da PNAD, baixa e processa os trimestres e atualiza os arquivos CSV em `dados_medianas_var/`. Para isso, execute:
 
@@ -55,7 +56,7 @@ Em caso de lançamento de novos dados da PNAD, baixa e processa os trimestres e 
 docker compose --profile update up --build
 ```
 
-#### Executar o Streamlit (run)
+#### ▶️ Executar o Streamlit (run)
 
 Para visualizar os dados já processados, execute:
 
