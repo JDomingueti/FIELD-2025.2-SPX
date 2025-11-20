@@ -71,8 +71,8 @@ http://localhost:8501
 
 #### Observações
 
-    A pasta dados_medianas_var/ é compartilhada entre os serviços via volume, então os resultados do processamento ficam acessíveis ao Streamlit.
+- A pasta dados_medianas_var/ é compartilhada entre os serviços via volume, então os resultados do processamento ficam acessíveis ao Streamlit.
 
-    A etapa update só precisa ser executada novamente quando você desejar atualizar os dados.
+- A etapa update só precisa ser executada novamente quando você desejar atualizar os dados.
 
-    A aplicação Streamlit usa apenas os CSVs gerados e não acessa diretamente os microdados brutos.
+- A aplicação Streamlit usa apenas os CSVs gerados e não acessa diretamente os microdados brutos.
