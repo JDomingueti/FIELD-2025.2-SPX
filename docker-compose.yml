@@ -4,7 +4,7 @@ services:
 #    build: ./updater
 #    container_name: dados_updater
 #    volumes:
-#      - ./dados_mediana_var:/data
+#      - ./dados_medianas_var:/data
 #    command: ["python", "update.py"]
 #    profiles: ["update"]
 
@@ -14,6 +14,6 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      - ./dados_mediana_var:/data
+      - ./dados_medianas_var:/data
     command: ["streamlit", "run", "app.py", "--server.port=8501"]
     profiles: ["run"]
