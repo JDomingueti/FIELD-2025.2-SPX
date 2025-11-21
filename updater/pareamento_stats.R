@@ -5,7 +5,7 @@ library(glue)
 library(tidyr)
 
 pasta_base <- "PNAD_data/Pareamentos"
-pasta_saida <- "dados_medianas_var"
+pasta_saida <- "../dados_medianas_var"
 
 #' @title Calcula a Proporção de Indivíduos por Classe de Pareamento
 #'

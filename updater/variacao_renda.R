@@ -60,7 +60,7 @@ calcular_variacoes <- function(filtro, ano_final, trim_final) {
   paste0("Filtro escolhido:", filtro)
   std_path <- getwd()
   
-  nome_pasta_saida <- "dados_medianas_var"
+  nome_pasta_saida <- "../dados_medianas_var"
   pasta_saida <- here(std_path, nome_pasta_saida)
   if (!dir.exists(pasta_saida)) dir.create(pasta_saida)
   

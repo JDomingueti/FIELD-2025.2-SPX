@@ -27,28 +27,40 @@ def cluster(ano, trimestre, k):
     dados = pd.read_parquet(file)
 
     validos = dados["log_renda"].notna() & (dados["classe_individuo"] <= 3)
-    rendas = dados.loc[validos, "log_renda"].values.reshape(-1, 1)
+    
+    sub = dados.loc[validos, ["ID_UNICO", "log_renda", "Ano", "Trimestre"]].copy()
 
-    kmeans = KMeans(n_clusters=k, random_state=42).fit(rendas)
+    # ordem de tempo
+    sub = sub.sort_values(["ID_UNICO", "Ano", "Trimestre"])
+
+    # pega somente a primeira aparicao dos individuos
+    first = sub.groupby("ID_UNICO").first()
+
+    # vetor para clustering
+    x = first["log_renda"].values.reshape(-1, 1)
+
+    # kmeans somente nas primeiras aparicoes
+    kmeans = KMeans(n_clusters=k, random_state=42).fit(X=x)
     labels = kmeans.labels_
     centros = kmeans.cluster_centers_.flatten()
-    
-    centros = kmeans.cluster_centers_.flatten()
 
+    # ordenar pelo centroide
     ordem = np.argsort(centros)
     centros_ordenados = centros[ordem]
-    
+
     labels_ordenados = np.zeros_like(labels)
     for novo_label, antigo_label in enumerate(ordem):
         labels_ordenados[labels == antigo_label] = novo_label
-    
-    print(f"{ano}.{trimestre}")
+
+    first["cluster"] = labels_ordenados
+
+    dados["grupo_renda_kmeans"] = np.nan
+    dados.loc[validos, "grupo_renda_kmeans"] = dados.loc[validos, "ID_UNICO"].map(first["cluster"])
+
+    print(f"\nArquivo {ano}.{trimestre}")
     for i, c in enumerate(centros_ordenados):
         print(f"  Cluster {i}: centróide = {c:.2f}")
-    
-    dados["grupo_renda_kmeans"] = np.nan
-    dados.loc[validos, "grupo_renda_kmeans"] = labels_ordenados
-    
+
     print("\nTamanho dos grupos:")
     for i in range(k):
         print(f"  Cluster {i}: {(dados['grupo_renda_kmeans'] == i).sum()}")
@@ -61,7 +73,7 @@ if (__name__ == "__main__"):
 
     for ano in anos:
         for trimestre in tri:
-            if ano == 2024 and trimestre == 3:
+            if ano == 2024 and trimestre == 4:
                 break
             
             cluster(ano, trimestre, 2)

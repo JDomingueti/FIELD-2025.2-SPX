@@ -45,20 +45,25 @@ def faixas(ano, trimestre):
         return cla
 
     validos = dados["VD4019"].notna()
-    rendas = dados.loc[validos, "VD4019"].values.reshape(-1, 1)
-
-    labels = [classe(r) for r in rendas]
+    sub = dados.loc[validos, ["ID_UNICO", "VD4019", "Ano", "Trimestre"]]
     
-    dados["grupo_renda"] = pd.Series(dtype="object")
-
-    dados.loc[validos, "grupo_renda"] = labels
+    # ordena pelo primeiro ano e trimestre dentro do arquivo
+    sub = sub.sort_values(["ID_UNICO", "Ano", "Trimestre"])
     
-    contagem = dados["grupo_renda"].value_counts(dropna=False).sort_index()
-
-    print("\nContagem de linhas por grupo de renda:")
-    print(contagem)
+    # primeira aparicao do individuo 
+    first = sub.groupby("ID_UNICO").first()
+    
+    # aplica a classe de renda
+    first["classe_inicial"] = first["VD4019"].apply(classe)
+    
+    dados["grupo_renda"] = pd.NA
+    
+    #mapeia cada id para sua classe inicial
+    dados.loc[validos, "grupo_renda"] = dados.loc[validos, "ID_UNICO"].map(first["classe_inicial"])
     
     dados.to_parquet(file)
+
+    print(f"{file.name} → {first.shape[0]} indivíduos processados (classe inicial definida).")
 
 if __name__ == "__main__":
     anos = range(2012, 2025)
@@ -66,8 +71,7 @@ if __name__ == "__main__":
 
     for ano in anos:
         for trimestre in tri:
-            if ano == 2024 and trimestre == 3:
+            if ano == 2024 and trimestre == 4:
                 break
-            
+
             faixas(ano, trimestre)
-        
