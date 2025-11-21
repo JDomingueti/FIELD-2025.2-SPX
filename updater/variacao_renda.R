@@ -56,12 +56,12 @@ grupo_ocp <- list(
 #' @importFrom here here
 #' @importFrom readr write_csv
 #' @importFrom scales percent
-calcular_variacoes <- function(filtro, ano_final, trim_final) {
+calcular_variacoes <- function(filtro, ano_final, trim_final, messages = TRUE) {
   paste0("Filtro escolhido:", filtro)
   std_path <- getwd()
   
   nome_pasta_saida <- "dados_medianas_var"
-  pasta_saida <- here(std_path, nome_pasta_saida)
+  pasta_saida <- here(std_path, "..", nome_pasta_saida)
   if (!dir.exists(pasta_saida)) dir.create(pasta_saida)
   
   # Caminho base onde estão os arquivos parquet
@@ -73,12 +73,12 @@ calcular_variacoes <- function(filtro, ano_final, trim_final) {
   
   if (grepl("D", filtro)){
     coluna_renda <- "VD4019_deflat"
-    cat("\nUsando renda deflacionada\n")
+    if (messages) cat("\nUsando renda deflacionada\n")
     is_deflated = TRUE
   } else {
-     coluna_renda <- "VD4019"
-     cat("\nUsando renda nominal\n")
-     is_deflated = FALSE
+    coluna_renda <- "VD4019"
+    if (messages) cat("\nUsando renda nominal\n")
+    is_deflated = FALSE
   }
   
   if (!(filtro %in% c("17", "17D", "18", "18D", "19", "19D", "20", "20D", "21", "21D", "22", "22D"))) {
@@ -98,7 +98,6 @@ calcular_variacoes <- function(filtro, ano_final, trim_final) {
       else if (grepl("20", filtro)) filt <- c("201", "202", "203")
       else if (grepl("21", filtro)) filt <- c("21A", "21B", "21C", "21D", "21D", "21E")
       else if (grepl("22", filtro)) filt <- c("22_0", "22_1")
-
     }
     l <- nchar(filt[1])
   }
@@ -108,17 +107,20 @@ calcular_variacoes <- function(filtro, ano_final, trim_final) {
     
     # Arquivo onde os resultados serão salvos
     arquivo_saida_texto <- here(pasta_saida, paste0("medianas_variacao_renda_", filtro, ".txt"))
-    
-    # Limpa o arquivo antes de começar
-    cat("", file = arquivo_saida_texto)
-    
-    estatisticas_var_zero <- data.frame(
-      ano_final = integer(),
-      trimestre = integer(),
-      percentual_zero = numeric(),
-      percentual_menor_igual_zero = numeric(),
-      stringsAsFactors = FALSE
-    )
+    arquivo_saida_csv <- here(pasta_saida, paste0("medianas_variacao_renda_", filtro, ".csv"))
+  
+    file_exists = file.exists(arquivo_saida_texto)
+    if (file_exists) {
+      resultados_old <- read.csv(arquivo_saida_csv)
+      ultimo_tri <- resultados_old$trimestre[nrow(resultados_old)]
+      ultimo_ano <- resultados_old$ano_final[nrow(resultados_old)] - 1 + (ultimo_tri %/% 4)
+      ultimo_tri <- (ultimo_tri %% 4) + 1
+    } else {
+      # Cria o arquivo caso não exista
+      cat("", file = arquivo_saida_texto)
+      ultimo_ano <- 2012
+      ultimo_tri <- 1
+    }
     
     # Data frame para armazenar todos os resultados
     resultados <- data.frame(
@@ -128,107 +130,107 @@ calcular_variacoes <- function(filtro, ano_final, trim_final) {
       obs = integer(),
       stringsAsFactors = FALSE
     )
+    estatisticas_var_zero <- data.frame(
+      ano_final = integer(),
+      trimestre = integer(),
+      percentual_zero = numeric(),
+      percentual_menor_igual_zero = numeric(),
+      stringsAsFactors = FALSE
+    )
     
-    for (ano in anos) {
-      for (tri in trimestres) {
+    ytri <- ultimo_tri
+    for (ano in ultimo_ano:ano_final) {
+      for (tri in ytri:4) {
         if ((ano == ano_final) & (tri > trim_final)) break
         start_ano <- ano
-        start_tri <- tri
         end_ano <- ano + 1
-        end_tri <- tri
         
-        rotulo_primeiro <- paste0(start_ano, "_", start_tri)
-        rotulo_ultimo <- paste0(end_ano, "_", end_tri)
-        arquivo_entrada <- file.path(pasta_base, paste0("pessoas_", start_ano, start_tri, "_", end_ano, end_tri, "_classificado.parquet"))
+        rotulo_primeiro <- paste0(start_ano, "_", tri)
+        rotulo_ultimo <- paste0(end_ano, "_", tri)
+        arquivo_entrada <- file.path(pasta_base, paste0("pessoas_", start_ano, tri, "_", end_ano, tri, "_classificado.parquet"))
         
         if (!file.exists(arquivo_entrada)) {
           cat("Arquivo não encontrado:", arquivo_entrada, "\n")
           next
         }
         
-        cat("Processando:", rotulo_primeiro, "->", rotulo_ultimo, "\n")
+        if (messages) cat("Processando:", rotulo_primeiro, "->", rotulo_ultimo, "\n")
         
         dados_classificados <- read_parquet(arquivo_entrada)
         
-        #Filtrando por tipo de trabalhador
-        if (filtro == "1" || filtro == "1D"){
+        # Filtrando por tipo de trabalhador
+        if (filtro == "1" || filtro == "1D") {
           dados_classificados <- dados_classificados %>%
             filter(plataforma_transporte == 1 | plataforma_entrega == 1)
           
-        } else if (filtro == "2" || filtro == "2D"){
+        } else if (filtro == "2" || filtro == "2D") {
           dados_classificados <- dados_classificados %>%
             filter(job_switcher == 1)
           
         } else if (filtro == "3" || filtro == "3D") { # Masculino
           dados_classificados <- dados_classificados %>%
             filter(V2007 == 1)
-  
-        } else if (filtro == "4" || filtro == "4D"){ # Feminino
+        } else if (filtro == "4" || filtro == "4D") { # Feminino
           dados_classificados <- dados_classificados %>%
             filter(V2007 == 2) 
-        } 
-        else if (filtro == "0" || filtro == "0D"){
-          # mantem todos os dados
-  
-        } else if (filtro == "5" || filtro == "5D"){ 
+          
+        } else if (filtro == "5" || filtro == "5D") { 
           dados_classificados <- dados_classificados %>%
             filter(UF %in% regioes[[1]])
-  
-        } else if (filtro == "6" || filtro == "6D"){
+        } else if (filtro == "6" || filtro == "6D") {
           dados_classificados <- dados_classificados %>%
             filter(UF %in% regioes[[2]])
-  
-        } else if (filtro == '7' || filtro == '7D'){
+        } else if (filtro == '7' || filtro == '7D') {
           dados_classificados <- dados_classificados %>%
             filter(UF %in% regioes[[3]])
-  
-        } else if (filtro == '8' || filtro == '8D'){
+        } else if (filtro == '8' || filtro == '8D') {
           dados_classificados <- dados_classificados %>%
             filter(UF %in% regioes[[4]])
-  
-        } else if (filtro == '9' || filtro == '9D'){
+        } else if (filtro == '9' || filtro == '9D') {
           dados_classificados <- dados_classificados %>%
             filter(UF %in% regioes[[5]])
-        } else if (filtro == '10' || filtro == '10D'){ # carteira assinada
+          
+        } else if (filtro == '10' || filtro == '10D') { # Carteira assinada
           dados_classificados <- dados_classificados %>%
             filter(V4029 == 1)
-        } else if (filtro == '14' || filtro == '14D'){ 
+          
+        } else if (filtro == '14' || filtro == '14D') { 
           dados_classificados <- dados_classificados %>%
             filter(V2009 >= 14 & V2009 <=24)
-        } else if (filtro == '15' || filtro == '15D'){ 
+        } else if (filtro == '15' || filtro == '15D') { 
           dados_classificados <- dados_classificados %>%
             filter(V2009 >= 25 & V2009 <=54)
-        }  else if (filtro == '16' || filtro == '16D'){ 
+        }  else if (filtro == '16' || filtro == '16D') { 
           dados_classificados <- dados_classificados %>%
             filter(V2009 >= 55)
+          
         } else if (grepl("17", filtro)) {  # Cor ou raça
           if (is_deflated) rac <- as.numeric(substring(filtro, l-1, l-1))
           else rac <- as.numeric(substring(filtro, l, l)) 
-          #cat("Código atual de raça:", rac, "\n")
           dados_classificados <- dados_classificados[as.numeric(dados_classificados$V2010) == rac,]
+          
         } else if (grepl("18", filtro)) {  # Nível educacional
           if (is_deflated) ed <- as.numeric(substring(filtro, l-1, l-1))
           else ed <- as.numeric(substring(filtro, l, l)) 
-          #cat("Código atual de educação:", ed, "\n")
           dados_classificados <- dados_classificados[as.numeric(dados_classificados$VD3004) == ed,]
+          
         } else if (grepl("19", filtro)) {  # Ocupações separadas
           if (is_deflated) ocp <- as.numeric(substring(filtro, l-1, l-1))
           else ocp <- as.numeric(substring(filtro, l, l))
-          #cat("Codigo atual de ocupação:", ocp, "\n")
           # Divide-se o código de ocupação para analisar os "Grandes Grupos"
           dados_classificados <- dados_classificados[as.numeric(dados_classificados$V4010) %/% 1000 == ocp,]
+          
         } else if (grepl("20", filtro)) {  # Divisões em Serviço, comércio e Industria
           if (is_deflated) ocp <- substring(filtro, l-1, l-1)
           else ocp <- substring(filtro, l, l)
-          #cat("Código atual de divisão:", ocp, "\n")
           dados_classificados <- dados_classificados[as.numeric(dados_classificados$V4013) %/% 1000 %in% grupo_ocp[[ocp]],]
-        
+          
         } else if (grepl("21", filtro)) { # Classes de Renda
           if (is_deflated) classe <- substring(filtro, l-1, l-1)
           else classe <- substring(filtro, l, l)
           dados_classificados <- dados_classificados %>%
             filter(grupo_renda == classe)
-
+          
         } else if (grepl("22", filtro )) { #Clusters de Renda
           if (is_deflated) cluster <- as.numeric(substring(filtro, l-1, l-1))
           else cluster <- as.numeric(substring(filtro, l, l))
@@ -263,7 +265,6 @@ calcular_variacoes <- function(filtro, ano_final, trim_final) {
         
         # Numero de observacoes de individuos
         num_obs <- nrow(dados_variacao)
-        #cat("Número de observações:", num_obs, "\n")
         
         # calcula estatistica desejada de acordo com o filtro
         if (filtro == "11" || filtro == "11D") {
@@ -294,17 +295,17 @@ calcular_variacoes <- function(filtro, ano_final, trim_final) {
           # adiciona ao df de estatisticas
           estatisticas_var_zero <- rbind(estatisticas_var_zero, data.frame(
             ano_final = end_ano,
-            trimestre = start_tri,
+            trimestre = tri,
             percentual_zero = contagens$percentual_zero,
             percentual_menor_igual_zero = contagens$percentual_menor_igual_zero
           ))
-          cat("Proporção de variação <= 0:", scales::percent(contagens$percentual_menor_igual_zero), "\n")
+          if (messages) cat("Proporção de variação <= 0:", scales::percent(contagens$percentual_menor_igual_zero), "\n")
         }
         
         # Adiciona ao dataframe de resultados
         resultados <- rbind(resultados, data.frame(
           ano_final = end_ano,
-          trimestre = start_tri,
+          trimestre = tri,
           mediana_variacao = estatistica_variacao,
           obs = num_obs
         ))
@@ -316,22 +317,24 @@ calcular_variacoes <- function(filtro, ano_final, trim_final) {
         )
         
         cat(resultado_texto, file = arquivo_saida_texto, append = TRUE)
-        cat(resultado_texto)
+        if (messages) cat(resultado_texto)
       }
+      ytri <- 1
     }
-  
+    
     # Exibe tabela final de resultados
-    print(resultados)
-  
+    if (messages) print(resultados)
+    
     # salva o df de estatisticas de var zero 
     if (filtro == "0" && nrow(estatisticas_var_zero) > 0) {
-      write.csv(estatisticas_var_zero, here(pasta_saida, "estatisticas_variacao_nula.csv"), row.names = FALSE)
+      write.csv(estatisticas_var_zero, here(pasta_saida, "estatisticas_variacao_nula.csv"), row.names = FALSE, append = TRUE)
     }
-  
-    # (Opcional) salva como CSV para análise posterior
-    write.csv(resultados, here(pasta_saida, paste0("medianas_variacao_renda_", filtro, ".csv")), row.names = FALSE)
-  
-    cat("\n Loop concluído! Resultados salvos em:", arquivo_saida_texto, "\n")
+    
+    # Se houveram resultados atualiza o csv
+    if (nrow(resultados) > 0)
+      write.csv(resultados, arquivo_saida_csv, row.names = FALSE, append = TRUE)
+    
+    if (messages) cat("\n Loop concluído! Resultados salvos em:", arquivo_saida_texto, "\n")
     
   }
 }
